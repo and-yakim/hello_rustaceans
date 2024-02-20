@@ -13,7 +13,6 @@ const HEIGHT: usize = ROWS * SIDE;
 
 const COLS_: isize = COLS as isize;
 const ROWS_: isize = ROWS as isize;
-const FOLD_ARR: [isize; 3] = [-1, 0, 1];
 
 const WHITE: u32 = 0xFFFFFFFF;
 const BLACK: u32 = 0x00000000;
@@ -86,17 +85,26 @@ fn main() {
     while window.is_open() && !window.is_key_down(Key::Escape) {
         for i in 0..ROWS {
             for j in 0..COLS {
-                // calculate neighbours and change !flag dependent alive*
                 let alive = cells[i][j].get(flag);
-                let count = FOLD_ARR.iter().fold(0, |acc, p| {
-                    FOLD_ARR.iter().fold(acc, |sum, q| {
-                        let (i1, i2) = (
-                            (i as isize + p).rem_euclid(ROWS_) as usize,
-                            (j as isize + q).rem_euclid(COLS_) as usize
-                        );
-                        sum + cells[i1][i2].get(flag) as isize
-                    })
-                }) - alive as isize;
+                let mut count = 0;
+                let mut count_fn = |i1: usize, i2: usize| {
+                    count = count + cells[i1][i2].get(flag) as i8;
+                };
+
+                let i1_dec = (i as isize - 1).rem_euclid(ROWS_) as usize;
+                let i1_inc = (i as isize + 1).rem_euclid(ROWS_) as usize;
+                let i2_dec = (j as isize - 1).rem_euclid(COLS_) as usize;
+                let i2_inc = (j as isize + 1).rem_euclid(COLS_) as usize;
+
+                count_fn(i1_dec, i2_dec);
+                count_fn(i1_dec, j);
+                count_fn(i1_dec, i2_inc);
+                count_fn(i, i2_dec);
+                count_fn(i, i2_inc);
+                count_fn(i1_inc, i2_dec);
+                count_fn(i1_inc, j);
+                count_fn(i1_inc, i2_inc);
+
                 cells[i][j].set(!flag, count == 3 || alive && count == 2);
 
                 if SIDE == 1 {
