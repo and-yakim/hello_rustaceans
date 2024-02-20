@@ -47,7 +47,7 @@ impl Cell {
 }
 
 fn main() {
-    let mut cells: [[Cell; COLS]; ROWS] = [[Cell::new(); COLS]; ROWS];
+    let mut cells = [[Cell::new(); COLS]; ROWS];
     for i in 0..ROWS {
         for j in 0..COLS {
             if random::<f32>() > 0.7 {
@@ -72,7 +72,7 @@ fn main() {
     // Limit to max ~60 fps update rate
     window.limit_update_rate(Some(time::Duration::from_micros(16600)));
 
-    let mut flag: bool = false;
+    let mut flag = false;
     let mut cells_instant = time::Instant::now();
     let mut fps_instant = time::Instant::now();
 
