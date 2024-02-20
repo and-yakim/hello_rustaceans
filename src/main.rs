@@ -44,6 +44,13 @@ impl Cell {
             self.alive2 = value;
         }
     }
+
+    fn get_color(&mut self, flag: bool) -> u32 {
+        match self.get(flag) {
+            true => BLACK,
+            false => WHITE
+        }
+    }
 }
 
 fn main() {
@@ -92,12 +99,13 @@ fn main() {
                 }) - alive as isize;
                 cells[i][j].set(!flag, count == 3 || alive && count == 2);
 
-                for y in (i * SIDE)..((i + 1) * SIDE) {
-                    for x in (j * SIDE)..((j + 1) * SIDE) {
-                        buffer[y * WIDTH + x] = match cells[i][j].get(flag) {
-                            true => BLACK,
-                            false => WHITE,
-                        };
+                if SIDE == 1 {
+                    buffer[i * WIDTH + j] = cells[i][j].get_color(flag);
+                } else {
+                    for y in (i * SIDE)..((i + 1) * SIDE) {
+                        for x in (j * SIDE)..((j + 1) * SIDE) {
+                            buffer[y * WIDTH + x] = cells[i][j].get_color(flag);
+                        }
                     }
                 }
             }
