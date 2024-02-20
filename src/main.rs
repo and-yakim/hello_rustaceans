@@ -4,9 +4,10 @@ use minifb::{Key, Window, WindowOptions};
 use rand::prelude::*;
 use std::{thread, time};
 
-const COLS: usize = 64;
-const ROWS: usize = 36;
-const SIDE: usize = 10;
+const MULTIPLIER: usize = 20;
+const COLS: usize = 64 * MULTIPLIER;
+const ROWS: usize = 36 * MULTIPLIER;
+const SIDE: usize = 1;
 const WIDTH: usize = COLS * SIDE;
 const HEIGHT: usize = ROWS * SIDE;
 
@@ -72,6 +73,8 @@ fn main() {
     window.limit_update_rate(Some(time::Duration::from_micros(16600)));
 
     let mut flag: bool = false;
+    let mut cells_instant = time::Instant::now();
+    let mut fps_instant = time::Instant::now();
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         for i in 0..ROWS {
@@ -100,7 +103,17 @@ fn main() {
             }
         }
         flag = !flag;
-        thread::sleep(time::Duration::from_millis(50));
+
+        let elapsed = cells_instant.elapsed().as_micros();
+        cells_instant = time::Instant::now();
+        if fps_instant.elapsed().as_millis() > 200 {
+            fps_instant = time::Instant::now();
+            let fps = 1000000.0 / elapsed as f64;
+            window.set_title(format!("{WIDTH}x{HEIGHT} FPS: {fps:.1}").as_str());
+        }
+        // same ~60 fps limit for cells computing
+        if elapsed < 16600 { thread::sleep(time::Duration::from_micros(16600 - elapsed as u64)) }
+
         // We unwrap here as we want this code to exit if it fails. Real applications may want to handle this in a different way
         window
             .update_with_buffer(&buffer, WIDTH, HEIGHT)
