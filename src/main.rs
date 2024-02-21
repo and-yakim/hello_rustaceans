@@ -17,48 +17,14 @@ const ROWS_: isize = ROWS as isize;
 const WHITE: u32 = 0xFFFFFFFF;
 const BLACK: u32 = 0x00000000;
 
-#[derive(Clone, Copy)]
-struct Cell {
-    alive1: bool,
-    alive2: bool
-}
-
-impl Cell {
-    fn new() -> Self {
-        Cell { alive1: false, alive2: false }
-    }
-
-    fn get(&mut self, flag: bool) -> bool {
-        if flag {
-            self.alive1
-        } else {
-            self.alive2
-        }
-    }
-
-    fn set(&mut self, flag: bool, value: bool) {
-        if flag {
-            self.alive1 = value;
-        } else {
-            self.alive2 = value;
-        }
-    }
-
-    fn get_color(&mut self, flag: bool) -> u32 {
-        match self.get(flag) {
-            true => BLACK,
-            false => WHITE
-        }
-    }
-}
-
 fn main() {
-    let mut cells = [[Cell::new(); COLS]; ROWS];
+    let mut cells1 = [[false; COLS]; ROWS];
+    let mut cells2 = [[false; COLS]; ROWS];
     for i in 0..ROWS {
         for j in 0..COLS {
             if random::<f32>() > 0.7 {
-                cells[i][j].alive1 = true;
-                cells[i][j].alive2 = true;
+                cells1[i][j] = true;
+                cells2[i][j] = true;
             }
         }
     }
@@ -82,37 +48,80 @@ fn main() {
     let mut cells_instant = time::Instant::now();
     let mut fps_instant = time::Instant::now();
 
+    let get_color = |val: bool| -> u32 {
+        match val {
+            true => BLACK,
+            false => WHITE
+        }
+    };
+
     while window.is_open() && !window.is_key_down(Key::Escape) {
-        for i in 0..ROWS {
-            for j in 0..COLS {
-                let alive = cells[i][j].get(flag);
-                let mut count = 0;
-                let mut count_fn = |i1: usize, i2: usize| {
-                    count = count + cells[i1][i2].get(flag) as i8;
-                };
-
-                let i1_dec = (i as isize - 1).rem_euclid(ROWS_) as usize;
-                let i1_inc = (i as isize + 1).rem_euclid(ROWS_) as usize;
-                let i2_dec = (j as isize - 1).rem_euclid(COLS_) as usize;
-                let i2_inc = (j as isize + 1).rem_euclid(COLS_) as usize;
-
-                count_fn(i1_dec, i2_dec);
-                count_fn(i1_dec, j);
-                count_fn(i1_dec, i2_inc);
-                count_fn(i, i2_dec);
-                count_fn(i, i2_inc);
-                count_fn(i1_inc, i2_dec);
-                count_fn(i1_inc, j);
-                count_fn(i1_inc, i2_inc);
-
-                cells[i][j].set(!flag, count == 3 || alive && count == 2);
-
-                if SIDE == 1 {
-                    buffer[i * WIDTH + j] = cells[i][j].get_color(flag);
-                } else {
-                    for y in (i * SIDE)..((i + 1) * SIDE) {
-                        for x in (j * SIDE)..((j + 1) * SIDE) {
-                            buffer[y * WIDTH + x] = cells[i][j].get_color(flag);
+        if flag {
+            for i in 0..ROWS {
+                for j in 0..COLS {
+                    let mut count = 0;
+                    let mut count_fn = |i1: usize, i2: usize| {
+                        count = count + cells1[i1][i2] as i8;
+                    };
+    
+                    let i1_dec = (i as isize - 1).rem_euclid(ROWS_) as usize;
+                    let i1_inc = (i as isize + 1).rem_euclid(ROWS_) as usize;
+                    let i2_dec = (j as isize - 1).rem_euclid(COLS_) as usize;
+                    let i2_inc = (j as isize + 1).rem_euclid(COLS_) as usize;
+    
+                    count_fn(i1_dec, i2_dec);
+                    count_fn(i1_dec, j);
+                    count_fn(i1_dec, i2_inc);
+                    count_fn(i, i2_dec);
+                    count_fn(i, i2_inc);
+                    count_fn(i1_inc, i2_dec);
+                    count_fn(i1_inc, j);
+                    count_fn(i1_inc, i2_inc);
+    
+                    cells2[i][j] = count == 3 || cells1[i][j] && count == 2;
+    
+                    if SIDE == 1 {
+                        buffer[i * WIDTH + j] = get_color(cells2[i][j]);
+                    } else {
+                        for y in (i * SIDE)..((i + 1) * SIDE) {
+                            for x in (j * SIDE)..((j + 1) * SIDE) {
+                                buffer[y * WIDTH + x] = get_color(cells2[i][j]);
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            for i in 0..ROWS {
+                for j in 0..COLS {
+                    let mut count = 0;
+                    let mut count_fn = |i1: usize, i2: usize| {
+                        count = count + cells2[i1][i2] as i8;
+                    };
+    
+                    let i1_dec = (i as isize - 1).rem_euclid(ROWS_) as usize;
+                    let i1_inc = (i as isize + 1).rem_euclid(ROWS_) as usize;
+                    let i2_dec = (j as isize - 1).rem_euclid(COLS_) as usize;
+                    let i2_inc = (j as isize + 1).rem_euclid(COLS_) as usize;
+    
+                    count_fn(i1_dec, i2_dec);
+                    count_fn(i1_dec, j);
+                    count_fn(i1_dec, i2_inc);
+                    count_fn(i, i2_dec);
+                    count_fn(i, i2_inc);
+                    count_fn(i1_inc, i2_dec);
+                    count_fn(i1_inc, j);
+                    count_fn(i1_inc, i2_inc);
+    
+                    cells1[i][j] = count == 3 || cells2[i][j] && count == 2;
+    
+                    if SIDE == 1 {
+                        buffer[i * WIDTH + j] = get_color(cells1[i][j]);
+                    } else {
+                        for y in (i * SIDE)..((i + 1) * SIDE) {
+                            for x in (j * SIDE)..((j + 1) * SIDE) {
+                                buffer[y * WIDTH + x] = get_color(cells1[i][j]);
+                            }
                         }
                     }
                 }
