@@ -1,7 +1,7 @@
 extern crate minifb;
 
 use minifb::{Key, Window, WindowOptions};
-use rand::prelude::*;
+use rand;
 use std::{thread, time};
 
 const MULTIPLIER: usize = 20;
@@ -66,7 +66,7 @@ fn main() {
     let mut cells2 = [[false; COLS]; ROWS];
     for i in 0..ROWS {
         for j in 0..COLS {
-            if random::<f32>() > 0.7 {
+            if rand::random::<f32>() > 0.7 {
                 cells1[i][j] = true;
                 cells2[i][j] = true;
             }
