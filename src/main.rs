@@ -27,24 +27,14 @@ fn get_cell_color(val: bool) -> u32 {
 fn do_step(cells_old: [[bool; COLS]; ROWS], cells_new: &mut [[bool; COLS]; ROWS], buffer: &mut Vec<u32>) {
     for i in 0..ROWS {
         for j in 0..COLS {
-            let mut count = 0;
-            let mut count_fn = |i1: usize, i2: usize| {
-                count = count + cells_old[i1][i2] as i8;
-            };
-
             let i1_dec = (i as isize - 1).rem_euclid(ROWS_) as usize;
             let i1_inc = (i as isize + 1).rem_euclid(ROWS_) as usize;
             let i2_dec = (j as isize - 1).rem_euclid(COLS_) as usize;
             let i2_inc = (j as isize + 1).rem_euclid(COLS_) as usize;
 
-            count_fn(i1_dec, i2_dec);
-            count_fn(i1_dec, j);
-            count_fn(i1_dec, i2_inc);
-            count_fn(i, i2_dec);
-            count_fn(i, i2_inc);
-            count_fn(i1_inc, i2_dec);
-            count_fn(i1_inc, j);
-            count_fn(i1_inc, i2_inc);
+            let count = cells_old[i1_dec][i2_dec] as i8 + cells_old[i1_dec][j] as i8 + cells_old[i1_dec][i2_inc] as i8 +
+                cells_old[i][i2_dec] as i8 + cells_old[i][i2_inc] as i8 +
+                cells_old[i1_inc][i2_dec] as i8 + cells_old[i1_inc][j] as i8 + cells_old[i1_inc][i2_inc] as i8;
 
             cells_new[i][j] = count == 3 || cells_old[i][j] && count == 2;
 
