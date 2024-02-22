@@ -5,31 +5,31 @@ use rand;
 use rayon::prelude::*;
 use std::{thread, time};
 
-// false => SIDE pixels per cell
-// true => SIDE cells per pixel
-const RENDER_MODE: Option<bool> = None;
-const SIDE: usize = 2;
-const fn multiply_by_mode(pixel_metric: bool, val: usize) -> usize {
+#[allow(dead_code)]
+enum RenderMode {
+    OneToOne,
+    Enlarge,
+    Reduce,
+    Crop,
+}
+
+const RENDER_MODE: RenderMode = RenderMode::Reduce;
+const SIDE: usize = 4;
+const fn scale_by_mode(val: usize) -> usize {
     match RENDER_MODE {
-        None => val,
-        Some(mode) => {
-            if mode ^ pixel_metric {
-                val * SIDE
-            } else {
-                val
-            }
-        }
+        RenderMode::OneToOne => val,
+        RenderMode::Enlarge => val * SIDE,
+        RenderMode::Reduce => val / SIDE,
+        RenderMode::Crop => val / SIDE,
     }
 }
 
 const MULTIPLIER: usize = 40;
-const COLS: usize = multiply_by_mode(false, 64 * MULTIPLIER);
-const ROWS: usize = multiply_by_mode(false, 36 * MULTIPLIER);
-const WIDTH: usize = multiply_by_mode(true, COLS);
-const HEIGHT: usize = multiply_by_mode(true, ROWS);
+const COLS: usize = 64 * MULTIPLIER;
+const ROWS: usize = 36 * MULTIPLIER;
 
-const COLS_: isize = COLS as isize;
-const ROWS_: isize = ROWS as isize;
+const WIDTH: usize = scale_by_mode(COLS);
+const HEIGHT: usize = scale_by_mode(ROWS);
 
 const WHITE: u32 = 0xFFFFFFFF;
 const BLACK: u32 = 0x00000000;
@@ -39,6 +39,21 @@ const fn get_cell_color(val: bool) -> u32 {
         false => WHITE,
     }
 }
+
+const fn get_grey_shades<const N: usize>() -> [u32; N] {
+    let mut res = [0; N];
+    let mut i = 0;
+    while i < N {
+        let grey_value = (i as u32 * 255) / (N as u32 - 1);
+        res[N - 1 - i] = 0xFF000000 | (grey_value << 16) | (grey_value << 8) | grey_value;
+        i += 1;
+    }
+    res
+}
+const GREY_SHADES: [u32; SIDE * SIDE + 1] = get_grey_shades();
+
+const COLS_: isize = COLS as isize;
+const ROWS_: isize = ROWS as isize;
 
 fn do_step(
     cells_old: &[[bool; COLS]; ROWS],
@@ -52,28 +67,28 @@ fn do_step(
             let i2_dec = (j as isize - 1).rem_euclid(COLS_) as usize;
             let i2_inc = (j as isize + 1).rem_euclid(COLS_) as usize;
 
-            let count = cells_old[i1_dec][i2_dec] as i8
-                + cells_old[i1_dec][j] as i8
-                + cells_old[i1_dec][i2_inc] as i8
-                + cells_old[i][i2_dec] as i8
-                + cells_old[i][i2_inc] as i8
-                + cells_old[i1_inc][i2_dec] as i8
-                + cells_old[i1_inc][j] as i8
-                + cells_old[i1_inc][i2_inc] as i8;
+            let count = cells_old[i1_dec][i2_dec] as u8
+                + cells_old[i1_dec][j] as u8
+                + cells_old[i1_dec][i2_inc] as u8
+                + cells_old[i][i2_dec] as u8
+                + cells_old[i][i2_inc] as u8
+                + cells_old[i1_inc][i2_dec] as u8
+                + cells_old[i1_inc][j] as u8
+                + cells_old[i1_inc][i2_inc] as u8;
 
             *cell = count == 3 || cells_old[i][j] && count == 2;
         });
     });
 
     match RENDER_MODE {
-        None => {
+        RenderMode::OneToOne => {
             for i in 0..ROWS {
                 for j in 0..COLS {
                     buffer[i * COLS + j] = get_cell_color(cells_new[i][j]);
                 }
             }
         }
-        Some(false) => {
+        RenderMode::Enlarge => {
             for i in 0..ROWS {
                 for j in 0..COLS {
                     for y in (i * SIDE)..((i + 1) * SIDE) {
@@ -84,16 +99,25 @@ fn do_step(
                 }
             }
         }
-        Some(true) => {
-            // for i in 0..ROWS {
-            //     for j in 0..COLS {
-            //         for y in (i * SIDE)..((i + 1) * SIDE) {
-            //             for x in (j * SIDE)..((j + 1) * SIDE) {
-            //                 buffer[y * WIDTH + x] = get_cell_color(cells_new[i][j]);
-            //             }
-            //         }
-            //     }
-            // }
+        RenderMode::Reduce => {
+            for i in 0..HEIGHT {
+                for j in 0..WIDTH {
+                    let mut count: usize = 0;
+                    for y in 0..SIDE {
+                        for x in 0..SIDE {
+                            count += cells_new[i * SIDE + y][j * SIDE + x] as usize;
+                        }
+                    }
+                    buffer[i * WIDTH + j] = GREY_SHADES[count];
+                }
+            }
+        }
+        RenderMode::Crop => {
+            for i in 0..HEIGHT {
+                for j in 0..WIDTH {
+                    buffer[i * WIDTH + j] = get_cell_color(cells_new[i][j]);
+                }
+            }
         }
     }
 }
