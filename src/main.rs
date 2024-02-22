@@ -5,20 +5,35 @@ use rand;
 use rayon::prelude::*;
 use std::{thread, time};
 
+// false => SIDE pixels per cell
+// true => SIDE cells per pixel
+const RENDER_MODE: Option<bool> = None;
+const SIDE: usize = 2;
+const fn multiply_by_mode(pixel_metric: bool, val: usize) -> usize {
+    match RENDER_MODE {
+        None => val,
+        Some(mode) => {
+            if mode ^ pixel_metric {
+                val * SIDE
+            } else {
+                val
+            }
+        }
+    }
+}
+
 const MULTIPLIER: usize = 40;
-const COLS: usize = 64 * MULTIPLIER;
-const ROWS: usize = 36 * MULTIPLIER;
-const SIDE: usize = 1;
-const WIDTH: usize = COLS * SIDE;
-const HEIGHT: usize = ROWS * SIDE;
+const COLS: usize = multiply_by_mode(false, 64 * MULTIPLIER);
+const ROWS: usize = multiply_by_mode(false, 36 * MULTIPLIER);
+const WIDTH: usize = multiply_by_mode(true, COLS);
+const HEIGHT: usize = multiply_by_mode(true, ROWS);
 
 const COLS_: isize = COLS as isize;
 const ROWS_: isize = ROWS as isize;
 
 const WHITE: u32 = 0xFFFFFFFF;
 const BLACK: u32 = 0x00000000;
-
-fn get_cell_color(val: bool) -> u32 {
+const fn get_cell_color(val: bool) -> u32 {
     match val {
         true => BLACK,
         false => WHITE,
@@ -50,17 +65,35 @@ fn do_step(
         });
     });
 
-    for i in 0..ROWS {
-        for j in 0..COLS {
-            if SIDE == 1 {
-                buffer[i * WIDTH + j] = get_cell_color(cells_new[i][j]);
-            } else {
-                for y in (i * SIDE)..((i + 1) * SIDE) {
-                    for x in (j * SIDE)..((j + 1) * SIDE) {
-                        buffer[y * WIDTH + x] = get_cell_color(cells_new[i][j]);
+    match RENDER_MODE {
+        None => {
+            for i in 0..ROWS {
+                for j in 0..COLS {
+                    buffer[i * COLS + j] = get_cell_color(cells_new[i][j]);
+                }
+            }
+        }
+        Some(false) => {
+            for i in 0..ROWS {
+                for j in 0..COLS {
+                    for y in (i * SIDE)..((i + 1) * SIDE) {
+                        for x in (j * SIDE)..((j + 1) * SIDE) {
+                            buffer[y * WIDTH + x] = get_cell_color(cells_new[i][j]);
+                        }
                     }
                 }
             }
+        }
+        Some(true) => {
+            // for i in 0..ROWS {
+            //     for j in 0..COLS {
+            //         for y in (i * SIDE)..((i + 1) * SIDE) {
+            //             for x in (j * SIDE)..((j + 1) * SIDE) {
+            //                 buffer[y * WIDTH + x] = get_cell_color(cells_new[i][j]);
+            //             }
+            //         }
+            //     }
+            // }
         }
     }
 }
