@@ -13,9 +13,9 @@ enum RenderMode {
     Crop,
 }
 
-const RENDER_MODE: RenderMode = RenderMode::Enlarge;
-const SIDE: usize = 2;
-const MULTIPLIER: usize = 20;
+const RENDER_MODE: RenderMode = RenderMode::Crop;
+const SIDE: usize = 8;
+const MULTIPLIER: usize = 160;
 // const RENDER_MODE: RenderMode = RenderMode::Crop;
 // const SIDE: usize = 100;
 // const MULTIPLIER: usize = 2000;
@@ -65,40 +65,62 @@ fn do_step(
 ) {
     cells_new
         .par_iter_mut()
-        .zip(
-            buffer
-                .chunks_mut(WIDTH)
-                .collect::<Vec<&mut [u32]>>()
-                .par_iter_mut(),
-        )
         .enumerate()
-        .for_each(|(i, (cells_row, buffer_row))| {
-            cells_row
-                .iter_mut()
-                .zip(buffer_row.iter_mut())
-                .enumerate()
-                .for_each(|(j, (cell, pixel))| {
-                    let i1_dec = (i as isize - 1).rem_euclid(ROWS_) as usize;
-                    let i1_inc = (i as isize + 1).rem_euclid(ROWS_) as usize;
-                    let i2_dec = (j as isize - 1).rem_euclid(COLS_) as usize;
-                    let i2_inc = (j as isize + 1).rem_euclid(COLS_) as usize;
+        .for_each(|(i, cells_row)| {
+            cells_row.iter_mut().enumerate().for_each(|(j, cell)| {
+                let i1_dec = (i as isize - 1).rem_euclid(ROWS_) as usize;
+                let i1_inc = (i as isize + 1).rem_euclid(ROWS_) as usize;
+                let i2_dec = (j as isize - 1).rem_euclid(COLS_) as usize;
+                let i2_inc = (j as isize + 1).rem_euclid(COLS_) as usize;
 
-                    let count = cells_old[i1_dec][i2_dec] as u8
-                        + cells_old[i1_dec][j] as u8
-                        + cells_old[i1_dec][i2_inc] as u8
-                        + cells_old[i][i2_dec] as u8
-                        + cells_old[i][i2_inc] as u8
-                        + cells_old[i1_inc][i2_dec] as u8
-                        + cells_old[i1_inc][j] as u8
-                        + cells_old[i1_inc][i2_inc] as u8;
+                let count = cells_old[i1_dec][i2_dec] as u8
+                    + cells_old[i1_dec][j] as u8
+                    + cells_old[i1_dec][i2_inc] as u8
+                    + cells_old[i][i2_dec] as u8
+                    + cells_old[i][i2_inc] as u8
+                    + cells_old[i1_inc][i2_dec] as u8
+                    + cells_old[i1_inc][j] as u8
+                    + cells_old[i1_inc][i2_inc] as u8;
 
-                    *cell = count == 3 || cells_old[i][j] && count == 2;
-                    // *pixel = get_cell_color(*cell);
-                })
+                *cell = count == 3 || cells_old[i][j] && count == 2;
+            })
         });
+    // cells_new
+    //     .par_iter_mut()
+    //     .zip(
+    //         buffer
+    //             .chunks_mut(WIDTH)
+    //             .collect::<Vec<&mut [u32]>>()
+    //             .par_iter_mut(),
+    //     )
+    //     .enumerate()
+    //     .for_each(|(i, (cells_row, buffer_row))| {
+    //         cells_row
+    //             .iter_mut()
+    //             .zip(buffer_row.iter_mut())
+    //             .enumerate()
+    //             .for_each(|(j, (cell, pixel))| {
+    //                 let i1_dec = (i as isize - 1).rem_euclid(ROWS_) as usize;
+    //                 let i1_inc = (i as isize + 1).rem_euclid(ROWS_) as usize;
+    //                 let i2_dec = (j as isize - 1).rem_euclid(COLS_) as usize;
+    //                 let i2_inc = (j as isize + 1).rem_euclid(COLS_) as usize;
+
+    //                 let count = cells_old[i1_dec][i2_dec] as u8
+    //                     + cells_old[i1_dec][j] as u8
+    //                     + cells_old[i1_dec][i2_inc] as u8
+    //                     + cells_old[i][i2_dec] as u8
+    //                     + cells_old[i][i2_inc] as u8
+    //                     + cells_old[i1_inc][i2_dec] as u8
+    //                     + cells_old[i1_inc][j] as u8
+    //                     + cells_old[i1_inc][i2_inc] as u8;
+
+    //                 *cell = count == 3 || cells_old[i][j] && count == 2;
+    //                 // *pixel = get_cell_color(*cell);
+    //             })
+    //     });
 
     match RENDER_MODE {
-        RenderMode::OneToOne => {
+        RenderMode::OneToOne | RenderMode::Crop => {
             buffer
                 .par_iter_mut()
                 .enumerate()
@@ -125,43 +147,34 @@ fn do_step(
                         }
                     }
                 });
-        }
-        /*
-        RenderMode::Reduce => {
-            buffer
-                .par_iter_mut()
-                .enumerate()
-                .for_each(|(index, pixel)| {
-                    let mut count: usize = 0;
-                    for y in 0..SIDE {
-                        for x in 0..SIDE {
-                            count += cells_new[index / WIDTH * SIDE + y][index % WIDTH * SIDE + x]
-                                as usize;
-                        }
-                    }
-                    *pixel = GREY_SHADES[count];
-                });
-            // for i in 0..HEIGHT {
-            //     for j in 0..WIDTH {
-            //         let mut count: usize = 0;
-            //         for y in 0..SIDE {
-            //             for x in 0..SIDE {
-            //                 count += cells_new[i * SIDE + y][j * SIDE + x] as usize;
-            //             }
-            //         }
-            //         buffer[i * WIDTH + j] = GREY_SHADES[count];
-            //     }
-            // }
-        }
-        */
-        RenderMode::Crop => {
-            buffer
-                .par_iter_mut()
-                .enumerate()
-                .for_each(|(index, pixel)| {
-                    *pixel = get_cell_color(cells_new[index / WIDTH][index % WIDTH]);
-                });
-        }
+        } /*
+          RenderMode::Reduce => {
+              buffer
+                  .par_iter_mut()
+                  .enumerate()
+                  .for_each(|(index, pixel)| {
+                      let mut count: usize = 0;
+                      for y in 0..SIDE {
+                          for x in 0..SIDE {
+                              count += cells_new[index / WIDTH * SIDE + y][index % WIDTH * SIDE + x]
+                                  as usize;
+                          }
+                      }
+                      *pixel = GREY_SHADES[count];
+                  });
+              // for i in 0..HEIGHT {
+              //     for j in 0..WIDTH {
+              //         let mut count: usize = 0;
+              //         for y in 0..SIDE {
+              //             for x in 0..SIDE {
+              //                 count += cells_new[i * SIDE + y][j * SIDE + x] as usize;
+              //             }
+              //         }
+              //         buffer[i * WIDTH + j] = GREY_SHADES[count];
+              //     }
+              // }
+          }
+          */
     }
 }
 
