@@ -13,7 +13,7 @@ enum RenderMode {
     Crop,
 }
 
-const RENDER_MODE: RenderMode = RenderMode::Reduce;
+const RENDER_MODE: RenderMode = RenderMode::OneToOne;
 const SIDE: usize = 4;
 const fn scale_by_mode(val: usize) -> usize {
     match RENDER_MODE {
@@ -82,13 +82,26 @@ fn do_step(
 
     match RENDER_MODE {
         RenderMode::OneToOne => {
-            for i in 0..ROWS {
-                for j in 0..COLS {
-                    buffer[i * COLS + j] = get_cell_color(cells_new[i][j]);
-                }
-            }
+            buffer
+                .par_iter_mut()
+                .enumerate()
+                .for_each(|(index, pixel)| {
+                    *pixel = get_cell_color(cells_new[index / WIDTH][index % WIDTH]);
+                });
+            // for i in 0..ROWS {
+            //     for j in 0..COLS {
+            //         buffer[i * COLS + j] = get_cell_color(cells_new[i][j]);
+            //     }
+            // }
         }
         RenderMode::Enlarge => {
+            // buffer
+            //     .par_iter_mut()
+            //     .enumerate()
+            //     .for_each(|(index, pixel)| {
+            //         let (i, j) = (index / WIDTH / SIDE, index % WIDTH / SIDE);
+            //         *pixel = get_cell_color(cells_new[i][j]);
+            //     });
             for i in 0..ROWS {
                 for j in 0..COLS {
                     for y in (i * SIDE)..((i + 1) * SIDE) {
