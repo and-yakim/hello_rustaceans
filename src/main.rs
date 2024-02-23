@@ -15,6 +15,14 @@ enum RenderMode {
 
 const RENDER_MODE: RenderMode = RenderMode::Crop;
 const SIDE: usize = 8;
+const MULTIPLIER: usize = 160;
+// const RENDER_MODE: RenderMode = RenderMode::Crop;
+// const SIDE: usize = 100;
+// const MULTIPLIER: usize = 2000;
+
+const COLS: usize = 64 * MULTIPLIER;
+const ROWS: usize = 36 * MULTIPLIER;
+
 const fn scale_by_mode(val: usize) -> usize {
     match RENDER_MODE {
         RenderMode::OneToOne => val,
@@ -23,11 +31,6 @@ const fn scale_by_mode(val: usize) -> usize {
         RenderMode::Crop => val / SIDE,
     }
 }
-
-const MULTIPLIER: usize = 160;
-const COLS: usize = 64 * MULTIPLIER;
-const ROWS: usize = 36 * MULTIPLIER;
-
 const WIDTH: usize = scale_by_mode(COLS);
 const HEIGHT: usize = scale_by_mode(ROWS);
 
@@ -146,23 +149,30 @@ fn do_step(
     }
 }
 
-// trait MemoryCompacted {
-
-// }
-
 fn main() {
     let mut cells1: Vec<bool> = vec![false; COLS * ROWS];
     let mut cells2: Vec<bool> = vec![false; COLS * ROWS];
     let mut cells1: Vec<&mut [bool]> = cells1.chunks_mut(COLS).collect();
     let mut cells2: Vec<&mut [bool]> = cells2.chunks_mut(COLS).collect();
-    for i in 0..ROWS {
-        for j in 0..COLS {
-            if rand::random::<f32>() > 0.7 {
-                cells1[i][j] = true;
-                cells2[i][j] = true;
-            }
-        }
-    }
+
+    let seed_arr_len = ((COLS * ROWS * 4) as f32).sqrt() as usize;
+    let seed_arr: Vec<bool> = (0..(seed_arr_len))
+        .map(|_| rand::random::<f32>() > 0.7)
+        .collect();
+    cells1
+        .par_iter_mut()
+        .zip(cells2.par_iter_mut())
+        .enumerate()
+        .for_each(|(i, (row1, row2))| {
+            row1.iter_mut()
+                .zip(row2.iter_mut())
+                .enumerate()
+                .for_each(|(j, (c1, c2))| {
+                    let res = seed_arr[(i * j).rem_euclid(seed_arr_len)];
+                    *c1 = res;
+                    *c2 = res;
+                });
+        });
 
     let mut buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
 
