@@ -9,7 +9,7 @@ use std::{thread, time};
 enum RenderMode {
     OneToOne,
     Enlarge,
-    Reduce,
+    // Reduce,
     Crop,
 }
 
@@ -19,7 +19,7 @@ const fn scale_by_mode(val: usize) -> usize {
     match RENDER_MODE {
         RenderMode::OneToOne => val,
         RenderMode::Enlarge => val * SIDE,
-        RenderMode::Reduce => val / SIDE,
+        // RenderMode::Reduce => val / SIDE,
         RenderMode::Crop => val / SIDE,
     }
 }
@@ -89,25 +89,6 @@ fn do_step(
                     // *pixel = get_cell_color(*cell);
                 })
         });
-    // cells_new.par_iter_mut().enumerate().for_each(|(i, row)| {
-    //     row.iter_mut().enumerate().for_each(|(j, cell)| {
-    //         let i1_dec = (i as isize - 1).rem_euclid(ROWS_) as usize;
-    //         let i1_inc = (i as isize + 1).rem_euclid(ROWS_) as usize;
-    //         let i2_dec = (j as isize - 1).rem_euclid(COLS_) as usize;
-    //         let i2_inc = (j as isize + 1).rem_euclid(COLS_) as usize;
-
-    //         let count = cells_old[i1_dec][i2_dec] as u8
-    //             + cells_old[i1_dec][j] as u8
-    //             + cells_old[i1_dec][i2_inc] as u8
-    //             + cells_old[i][i2_dec] as u8
-    //             + cells_old[i][i2_inc] as u8
-    //             + cells_old[i1_inc][i2_dec] as u8
-    //             + cells_old[i1_inc][j] as u8
-    //             + cells_old[i1_inc][i2_inc] as u8;
-
-    //         *cell = count == 3 || cells_old[i][j] && count == 2;
-    //     });
-    // });
 
     match RENDER_MODE {
         RenderMode::OneToOne => {
@@ -117,11 +98,6 @@ fn do_step(
                 .for_each(|(index, pixel)| {
                     *pixel = get_cell_color(cells_new[index / WIDTH][index % WIDTH]);
                 });
-            // for i in 0..ROWS {
-            //     for j in 0..COLS {
-            //         buffer[i * COLS + j] = get_cell_color(cells_new[i][j]);
-            //     }
-            // }
         }
         RenderMode::Enlarge => {
             buffer
@@ -130,16 +106,8 @@ fn do_step(
                 .for_each(|(index, pixel)| {
                     *pixel = get_cell_color(cells_new[index / WIDTH / SIDE][index % WIDTH / SIDE]);
                 });
-            // for i in 0..ROWS {
-            //     for j in 0..COLS {
-            //         for y in (i * SIDE)..((i + 1) * SIDE) {
-            //             for x in (j * SIDE)..((j + 1) * SIDE) {
-            //                 buffer[y * WIDTH + x] = get_cell_color(cells_new[i][j]);
-            //             }
-            //         }
-            //     }
-            // }
         }
+        /*
         RenderMode::Reduce => {
             buffer
                 .par_iter_mut()
@@ -166,6 +134,7 @@ fn do_step(
             //     }
             // }
         }
+        */
         RenderMode::Crop => {
             buffer
                 .par_iter_mut()
@@ -173,11 +142,6 @@ fn do_step(
                 .for_each(|(index, pixel)| {
                     *pixel = get_cell_color(cells_new[index / WIDTH][index % WIDTH]);
                 });
-            // for i in 0..HEIGHT {
-            //     for j in 0..WIDTH {
-            //         buffer[i * WIDTH + j] = get_cell_color(cells_new[i][j]);
-            //     }
-            // }
         }
     }
 }
