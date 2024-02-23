@@ -13,8 +13,8 @@ enum RenderMode {
     Crop,
 }
 
-const RENDER_MODE: RenderMode = RenderMode::OneToOne;
-const SIDE: usize = 2;
+const RENDER_MODE: RenderMode = RenderMode::Crop;
+const SIDE: usize = 8;
 const fn scale_by_mode(val: usize) -> usize {
     match RENDER_MODE {
         RenderMode::OneToOne => val,
@@ -24,7 +24,7 @@ const fn scale_by_mode(val: usize) -> usize {
     }
 }
 
-const MULTIPLIER: usize = 40;
+const MULTIPLIER: usize = 160;
 const COLS: usize = 64 * MULTIPLIER;
 const ROWS: usize = 36 * MULTIPLIER;
 
@@ -40,24 +40,24 @@ const fn get_cell_color(val: bool) -> u32 {
     }
 }
 
-const fn get_grey_shades<const N: usize>() -> [u32; N] {
-    let mut res = [0; N];
+#[allow(dead_code)]
+const GREY_SHADES: [u32; SIDE * SIDE + 1] = {
+    let mut res = [0; SIDE * SIDE + 1];
     let mut i = 0;
-    while i < N {
-        let grey_value = (i as u32 * 255) / (N as u32 - 1);
-        res[N - 1 - i] = 0xFF000000 | (grey_value << 16) | (grey_value << 8) | grey_value;
+    while i <= SIDE * SIDE {
+        let grey_value = (i as u32 * 255) / (SIDE * SIDE) as u32;
+        res[SIDE * SIDE - i] = 0xFF000000 | (grey_value << 16) | (grey_value << 8) | grey_value;
         i += 1;
     }
     res
-}
-const GREY_SHADES: [u32; SIDE * SIDE + 1] = get_grey_shades();
+};
 
 const COLS_: isize = COLS as isize;
 const ROWS_: isize = ROWS as isize;
 
 fn do_step(
-    cells_old: &[[bool; COLS]; ROWS],
-    cells_new: &mut [[bool; COLS]; ROWS],
+    cells_old: &Vec<&mut [bool]>,
+    cells_new: &mut Vec<&mut [bool]>,
     buffer: &mut Vec<u32>,
 ) {
     let mut buffer_slices: Vec<&mut [u32]> = buffer.chunks_mut(WIDTH).collect();
@@ -86,7 +86,7 @@ fn do_step(
                         + cells_old[i1_inc][i2_inc] as u8;
 
                     *cell = count == 3 || cells_old[i][j] && count == 2;
-                    *pixel = get_cell_color(*cell);
+                    // *pixel = get_cell_color(*cell);
                 })
         });
     // cells_new.par_iter_mut().enumerate().for_each(|(i, row)| {
@@ -109,7 +109,7 @@ fn do_step(
     //     });
     // });
 
-    /*match RENDER_MODE {
+    match RENDER_MODE {
         RenderMode::OneToOne => {
             buffer
                 .par_iter_mut()
@@ -179,12 +179,18 @@ fn do_step(
             //     }
             // }
         }
-    }*/
+    }
 }
 
+// trait MemoryCompacted {
+
+// }
+
 fn main() {
-    let mut cells1 = [[false; COLS]; ROWS];
-    let mut cells2 = [[false; COLS]; ROWS];
+    let mut cells1: Vec<bool> = vec![false; COLS * ROWS];
+    let mut cells2: Vec<bool> = vec![false; COLS * ROWS];
+    let mut cells1: Vec<&mut [bool]> = cells1.chunks_mut(COLS).collect();
+    let mut cells2: Vec<&mut [bool]> = cells2.chunks_mut(COLS).collect();
     for i in 0..ROWS {
         for j in 0..COLS {
             if rand::random::<f32>() > 0.7 {
