@@ -13,7 +13,7 @@ enum RenderMode {
     Crop,
 }
 
-const RENDER_MODE: RenderMode = RenderMode::Crop;
+const RENDER_MODE: RenderMode = RenderMode::OneToOne;
 const SIDE: usize = 2;
 const fn scale_by_mode(val: usize) -> usize {
     match RENDER_MODE {
@@ -60,27 +60,56 @@ fn do_step(
     cells_new: &mut [[bool; COLS]; ROWS],
     buffer: &mut Vec<u32>,
 ) {
-    cells_new.par_iter_mut().enumerate().for_each(|(i, row)| {
-        row.iter_mut().enumerate().for_each(|(j, cell)| {
-            let i1_dec = (i as isize - 1).rem_euclid(ROWS_) as usize;
-            let i1_inc = (i as isize + 1).rem_euclid(ROWS_) as usize;
-            let i2_dec = (j as isize - 1).rem_euclid(COLS_) as usize;
-            let i2_inc = (j as isize + 1).rem_euclid(COLS_) as usize;
+    let mut buffer_slices: Vec<&mut [u32]> = buffer.chunks_mut(WIDTH).collect();
+    cells_new
+        .par_iter_mut()
+        .zip(buffer_slices.par_iter_mut())
+        .enumerate()
+        .for_each(|(i, (cells_row, buffer_row))| {
+            cells_row
+                .iter_mut()
+                .zip(buffer_row.iter_mut())
+                .enumerate()
+                .for_each(|(j, (cell, pixel))| {
+                    let i1_dec = (i as isize - 1).rem_euclid(ROWS_) as usize;
+                    let i1_inc = (i as isize + 1).rem_euclid(ROWS_) as usize;
+                    let i2_dec = (j as isize - 1).rem_euclid(COLS_) as usize;
+                    let i2_inc = (j as isize + 1).rem_euclid(COLS_) as usize;
 
-            let count = cells_old[i1_dec][i2_dec] as u8
-                + cells_old[i1_dec][j] as u8
-                + cells_old[i1_dec][i2_inc] as u8
-                + cells_old[i][i2_dec] as u8
-                + cells_old[i][i2_inc] as u8
-                + cells_old[i1_inc][i2_dec] as u8
-                + cells_old[i1_inc][j] as u8
-                + cells_old[i1_inc][i2_inc] as u8;
+                    let count = cells_old[i1_dec][i2_dec] as u8
+                        + cells_old[i1_dec][j] as u8
+                        + cells_old[i1_dec][i2_inc] as u8
+                        + cells_old[i][i2_dec] as u8
+                        + cells_old[i][i2_inc] as u8
+                        + cells_old[i1_inc][i2_dec] as u8
+                        + cells_old[i1_inc][j] as u8
+                        + cells_old[i1_inc][i2_inc] as u8;
 
-            *cell = count == 3 || cells_old[i][j] && count == 2;
+                    *cell = count == 3 || cells_old[i][j] && count == 2;
+                    *pixel = get_cell_color(*cell);
+                })
         });
-    });
+    // cells_new.par_iter_mut().enumerate().for_each(|(i, row)| {
+    //     row.iter_mut().enumerate().for_each(|(j, cell)| {
+    //         let i1_dec = (i as isize - 1).rem_euclid(ROWS_) as usize;
+    //         let i1_inc = (i as isize + 1).rem_euclid(ROWS_) as usize;
+    //         let i2_dec = (j as isize - 1).rem_euclid(COLS_) as usize;
+    //         let i2_inc = (j as isize + 1).rem_euclid(COLS_) as usize;
 
-    match RENDER_MODE {
+    //         let count = cells_old[i1_dec][i2_dec] as u8
+    //             + cells_old[i1_dec][j] as u8
+    //             + cells_old[i1_dec][i2_inc] as u8
+    //             + cells_old[i][i2_dec] as u8
+    //             + cells_old[i][i2_inc] as u8
+    //             + cells_old[i1_inc][i2_dec] as u8
+    //             + cells_old[i1_inc][j] as u8
+    //             + cells_old[i1_inc][i2_inc] as u8;
+
+    //         *cell = count == 3 || cells_old[i][j] && count == 2;
+    //     });
+    // });
+
+    /*match RENDER_MODE {
         RenderMode::OneToOne => {
             buffer
                 .par_iter_mut()
@@ -99,8 +128,7 @@ fn do_step(
                 .par_iter_mut()
                 .enumerate()
                 .for_each(|(index, pixel)| {
-                    let (i, j) = (index / WIDTH / SIDE, index % WIDTH / SIDE);
-                    *pixel = get_cell_color(cells_new[i][j]);
+                    *pixel = get_cell_color(cells_new[index / WIDTH / SIDE][index % WIDTH / SIDE]);
                 });
             // for i in 0..ROWS {
             //     for j in 0..COLS {
@@ -151,7 +179,7 @@ fn do_step(
             //     }
             // }
         }
-    }
+    }*/
 }
 
 fn main() {
