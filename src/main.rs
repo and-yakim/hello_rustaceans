@@ -13,9 +13,9 @@ enum RenderMode {
     Crop,
 }
 
-const RENDER_MODE: RenderMode = RenderMode::Crop;
-const SIDE: usize = 8;
-const MULTIPLIER: usize = 160;
+const RENDER_MODE: RenderMode = RenderMode::Enlarge;
+const SIDE: usize = 2;
+const MULTIPLIER: usize = 20;
 // const RENDER_MODE: RenderMode = RenderMode::Crop;
 // const SIDE: usize = 100;
 // const MULTIPLIER: usize = 2000;
@@ -63,10 +63,14 @@ fn do_step(
     cells_new: &mut Vec<&mut [bool]>,
     buffer: &mut Vec<u32>,
 ) {
-    let mut buffer_slices: Vec<&mut [u32]> = buffer.chunks_mut(WIDTH).collect();
     cells_new
         .par_iter_mut()
-        .zip(buffer_slices.par_iter_mut())
+        .zip(
+            buffer
+                .chunks_mut(WIDTH)
+                .collect::<Vec<&mut [u32]>>()
+                .par_iter_mut(),
+        )
         .enumerate()
         .for_each(|(i, (cells_row, buffer_row))| {
             cells_row
@@ -103,11 +107,23 @@ fn do_step(
                 });
         }
         RenderMode::Enlarge => {
-            buffer
-                .par_iter_mut()
-                .enumerate()
-                .for_each(|(index, pixel)| {
-                    *pixel = get_cell_color(cells_new[index / WIDTH / SIDE][index % WIDTH / SIDE]);
+            cells_new
+                .par_iter()
+                .zip(
+                    buffer
+                        .chunks_mut(WIDTH * SIDE)
+                        .collect::<Vec<&mut [u32]>>()
+                        .par_iter_mut(),
+                )
+                .for_each(|(cells_row, buffer_chunk)| {
+                    for i in 0..SIDE {
+                        for j in 0..SIDE {
+                            for x in 0..COLS {
+                                buffer_chunk[i * WIDTH + x * SIDE + j] =
+                                    get_cell_color(cells_row[x]);
+                            }
+                        }
+                    }
                 });
         }
         /*
