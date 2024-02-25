@@ -1,5 +1,6 @@
 extern crate minifb;
 
+use bitvec::prelude::*;
 use minifb::{Key, Window, WindowOptions};
 use rand::{self, random};
 use rayon::prelude::*;
@@ -57,10 +58,11 @@ const GREY_SHADES: [u32; 5] = {
 const COLS_: isize = COLS as isize;
 const ROWS_: isize = ROWS as isize;
 
-fn do_step(
-    cells_old: &Vec<&mut [bool]>,
-    cells_new: &mut Vec<&mut [bool]>,
+fn do_step<const N: usize>(
+    cells_old: &Vec<BitArray<[usize; N]>>,
+    cells_new: &mut Vec<BitArray<[usize; N]>>,
     buffer: &mut Vec<u32>,
+    cells_instant: &time::Instant,
 ) {
     let mut compute_cells_def = || {
         cells_new
@@ -82,9 +84,10 @@ fn do_step(
                         + cells_old[i1_inc][j] as u8
                         + cells_old[i1_inc][i2_inc] as u8;
 
-                    cells_row[j] = count == 3 || cells_old[i][j] && count == 2;
+                    cells_row.set(j, count == 3 || cells_old[i][j] && count == 2);
                 }
             });
+        println!("{}", cells_instant.elapsed().as_millis());
     };
 
     match RENDER_MODE {
@@ -114,10 +117,11 @@ fn do_step(
                             + cells_old[i1_inc][j] as u8
                             + cells_old[i1_inc][i2_inc] as u8;
 
-                        cells_row[j] = count == 3 || cells_old[i][j] && count == 2;
+                        cells_row.set(j, count == 3 || cells_old[i][j] && count == 2);
                         buffer_chunk[j] = get_cell_color(cells_row[j]);
                     }
                 });
+            println!("{}", cells_instant.elapsed().as_millis());
         }
         RenderMode::Enlarge => {
             compute_cells_def();
@@ -180,10 +184,9 @@ fn do_step(
 }
 
 fn main() {
-    let mut cells1: Vec<bool> = vec![false; COLS * ROWS];
-    let mut cells2: Vec<bool> = vec![false; COLS * ROWS];
-    let mut cells1: Vec<&mut [bool]> = cells1.chunks_mut(COLS).collect();
-    let mut cells2: Vec<&mut [bool]> = cells2.chunks_mut(COLS).collect();
+    let m_instant = time::Instant::now();
+    let mut cells1 = vec![bitarr!(0; COLS); ROWS];
+    let mut cells2 = vec![bitarr!(0; COLS); ROWS];
 
     let seed_arr_len = ((COLS * ROWS * 4) as f32).sqrt() as usize;
     let seed_arr: Vec<bool> = (0..(seed_arr_len)).map(|_| random::<f32>() > 0.7).collect();
@@ -192,15 +195,13 @@ fn main() {
         .zip(cells2.par_iter_mut())
         .enumerate()
         .for_each(|(i, (row1, row2))| {
-            row1.iter_mut()
-                .zip(row2.iter_mut())
-                .enumerate()
-                .for_each(|(j, (c1, c2))| {
-                    let res = seed_arr[(i * j).rem_euclid(seed_arr_len)];
-                    *c1 = res;
-                    *c2 = res;
-                });
+            for j in 0..COLS {
+                let res = seed_arr[(i * j).rem_euclid(seed_arr_len)];
+                row1.set(j, res);
+                row2.set(j, res);
+            }
         });
+    println!("{}", m_instant.elapsed().as_millis());
 
     let mut buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
 
@@ -223,9 +224,9 @@ fn main() {
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         if flag {
-            do_step(&cells1, &mut cells2, &mut buffer);
+            do_step(&cells1, &mut cells2, &mut buffer, &cells_instant);
         } else {
-            do_step(&cells2, &mut cells1, &mut buffer);
+            do_step(&cells2, &mut cells1, &mut buffer, &cells_instant);
         }
         flag = !flag;
 
