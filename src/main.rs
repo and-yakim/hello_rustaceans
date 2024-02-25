@@ -69,22 +69,45 @@ fn do_step<const N: usize>(
             .par_iter_mut()
             .enumerate()
             .for_each(|(i, cells_row)| {
+                let i_dec = (i - 1).rem_euclid(ROWS);
+                let i_inc = (i + 1).rem_euclid(ROWS);
+
+                let mut left_triple1 = cells_old[i_dec][COLS - 1] as u8
+                    + cells_old[i][COLS - 1] as u8
+                    + cells_old[i_inc][COLS - 1] as u8;
+                let mut left_triple2 =
+                    cells_old[i_dec][0] as u8 + cells_old[i][0] as u8 + cells_old[i_inc][0] as u8;
+                let mut flag = true;
+
                 for j in 0..COLS {
                     let i1_dec = (i as isize - 1).rem_euclid(ROWS_) as usize;
                     let i1_inc = (i as isize + 1).rem_euclid(ROWS_) as usize;
-                    let i2_dec = (j as isize - 1).rem_euclid(COLS_) as usize;
                     let i2_inc = (j as isize + 1).rem_euclid(COLS_) as usize;
 
-                    let count = cells_old[i1_dec][i2_dec] as u8
-                        + cells_old[i1_dec][j] as u8
-                        + cells_old[i1_dec][i2_inc] as u8
-                        + cells_old[i][i2_dec] as u8
+                    let right_triple = cells_old[i1_dec][i2_inc] as u8
                         + cells_old[i][i2_inc] as u8
-                        + cells_old[i1_inc][i2_dec] as u8
-                        + cells_old[i1_inc][j] as u8
                         + cells_old[i1_inc][i2_inc] as u8;
 
+                    let count = if flag {
+                        let count = left_triple1
+                            + cells_old[i1_dec][j] as u8
+                            + cells_old[i1_inc][j] as u8
+                            + right_triple;
+
+                        left_triple1 = right_triple;
+                        count
+                    } else {
+                        let count = left_triple2
+                            + cells_old[i1_dec][j] as u8
+                            + cells_old[i1_inc][j] as u8
+                            + right_triple;
+
+                        left_triple2 = right_triple;
+                        count
+                    };
+
                     cells_row.set(j, count == 3 || cells_old[i][j] && count == 2);
+                    flag = !flag;
                 }
             });
     };
@@ -101,23 +124,48 @@ fn do_step<const N: usize>(
                 )
                 .enumerate()
                 .for_each(|(i, (cells_row, buffer_chunk))| {
+                    let i_dec = (i - 1).rem_euclid(ROWS);
+                    let i_inc = (i + 1).rem_euclid(ROWS);
+
+                    let mut left_triple1 = cells_old[i_dec][COLS - 1] as u8
+                        + cells_old[i][COLS - 1] as u8
+                        + cells_old[i_inc][COLS - 1] as u8;
+                    let mut left_triple2 = cells_old[i_dec][0] as u8
+                        + cells_old[i][0] as u8
+                        + cells_old[i_inc][0] as u8;
+                    let mut flag = true;
+
                     for j in 0..COLS {
                         let i1_dec = (i as isize - 1).rem_euclid(ROWS_) as usize;
                         let i1_inc = (i as isize + 1).rem_euclid(ROWS_) as usize;
-                        let i2_dec = (j as isize - 1).rem_euclid(COLS_) as usize;
                         let i2_inc = (j as isize + 1).rem_euclid(COLS_) as usize;
 
-                        let count = cells_old[i1_dec][i2_dec] as u8
-                            + cells_old[i1_dec][j] as u8
-                            + cells_old[i1_dec][i2_inc] as u8
-                            + cells_old[i][i2_dec] as u8
+                        let right_triple = cells_old[i1_dec][i2_inc] as u8
                             + cells_old[i][i2_inc] as u8
-                            + cells_old[i1_inc][i2_dec] as u8
-                            + cells_old[i1_inc][j] as u8
                             + cells_old[i1_inc][i2_inc] as u8;
 
-                        cells_row.set(j, count == 3 || cells_old[i][j] && count == 2);
-                        buffer_chunk[j] = get_cell_color(cells_row[j]);
+                        let count = if flag {
+                            let count = left_triple1
+                                + cells_old[i1_dec][j] as u8
+                                + cells_old[i1_inc][j] as u8
+                                + right_triple;
+
+                            left_triple1 = right_triple;
+                            count
+                        } else {
+                            let count = left_triple2
+                                + cells_old[i1_dec][j] as u8
+                                + cells_old[i1_inc][j] as u8
+                                + right_triple;
+
+                            left_triple2 = right_triple;
+                            count
+                        };
+                        let res = count == 3 || cells_old[i][j] && count == 2;
+
+                        cells_row.set(j, res);
+                        buffer_chunk[j] = get_cell_color(res);
+                        flag = !flag;
                     }
                 });
         }
