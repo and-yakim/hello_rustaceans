@@ -87,7 +87,6 @@ fn do_step<const N: usize>(
                     cells_row.set(j, count == 3 || cells_old[i][j] && count == 2);
                 }
             });
-        println!("{}", cells_instant.elapsed().as_millis());
     };
 
     match RENDER_MODE {
@@ -121,7 +120,6 @@ fn do_step<const N: usize>(
                         buffer_chunk[j] = get_cell_color(cells_row[j]);
                     }
                 });
-            println!("{}", cells_instant.elapsed().as_millis());
         }
         RenderMode::Enlarge => {
             compute_cells_def();
@@ -181,10 +179,11 @@ fn do_step<const N: usize>(
                 });
         }
     }
+    println!("{}", cells_instant.elapsed().as_millis());
 }
 
 fn main() {
-    let m_instant = time::Instant::now();
+    let start_instant = time::Instant::now();
     let mut cells1 = vec![bitarr!(0; COLS); ROWS];
     let mut cells2 = vec![bitarr!(0; COLS); ROWS];
 
@@ -201,7 +200,7 @@ fn main() {
                 row2.set(j, res);
             }
         });
-    println!("{}", m_instant.elapsed().as_millis());
+    println!("{}", start_instant.elapsed().as_millis());
 
     let mut buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
 
