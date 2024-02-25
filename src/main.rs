@@ -69,8 +69,8 @@ fn do_step<const N: usize>(
             .par_iter_mut()
             .enumerate()
             .for_each(|(i, cells_row)| {
-                let i_dec = (i - 1).rem_euclid(ROWS);
-                let i_inc = (i + 1).rem_euclid(ROWS);
+                let i_dec = (i as isize - 1).rem_euclid(ROWS_) as usize;
+                let i_inc = (i as isize + 1).rem_euclid(ROWS_) as usize;
 
                 let mut left_triple1 = cells_old[i_dec][COLS - 1] as u8
                     + cells_old[i][COLS - 1] as u8
@@ -124,8 +124,8 @@ fn do_step<const N: usize>(
                 )
                 .enumerate()
                 .for_each(|(i, (cells_row, buffer_chunk))| {
-                    let i_dec = (i - 1).rem_euclid(ROWS);
-                    let i_inc = (i + 1).rem_euclid(ROWS);
+                    let i_dec = (i as isize - 1).rem_euclid(ROWS_) as usize;
+                    let i_inc = (i as isize + 1).rem_euclid(ROWS_) as usize;
 
                     let mut left_triple1 = cells_old[i_dec][COLS - 1] as u8
                         + cells_old[i][COLS - 1] as u8
