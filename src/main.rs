@@ -1,7 +1,7 @@
 extern crate minifb;
 
 use minifb::{Key, Window, WindowOptions};
-use rand;
+use rand::{self, random};
 use rayon::prelude::*;
 use std::{thread, time};
 
@@ -13,7 +13,7 @@ enum RenderMode {
     Crop,
 }
 
-const RENDER_MODE: RenderMode = RenderMode::Crop;
+const RENDER_MODE: RenderMode = RenderMode::Reduce;
 const SIDE: usize = 8;
 const MULTIPLIER: usize = 160;
 // const RENDER_MODE: RenderMode = RenderMode::Crop;
@@ -43,12 +43,12 @@ const fn get_cell_color(val: bool) -> u32 {
 }
 
 #[allow(dead_code)]
-const GREY_SHADES: [u32; SIDE * SIDE + 1] = {
-    let mut res = [0; SIDE * SIDE + 1];
+const GREY_SHADES: [u32; 5] = {
+    let mut res = [0; 5];
     let mut i = 0;
-    while i <= SIDE * SIDE {
-        let grey_value = (i as u32 * 255) / (SIDE * SIDE) as u32;
-        res[SIDE * SIDE - i] = 0xFF000000 | (grey_value << 16) | (grey_value << 8) | grey_value;
+    while i <= 4 {
+        let grey_value = (i as u32 * 255) / (4) as u32;
+        res[4 - i] = 0xFF000000 | (grey_value << 16) | (grey_value << 8) | grey_value;
         i += 1;
     }
     res
@@ -161,7 +161,8 @@ fn do_step(
                                 count += cells_chunk[i][x * SIDE + j] as usize;
                             }
                         }
-                        buffer_chunk[x] = GREY_SHADES[count];
+                        buffer_chunk[x] = GREY_SHADES
+                            [(count as f32 / (SIDE * SIDE) as f32 * 4.0).round() as usize];
                     }
                 });
         }
@@ -185,9 +186,7 @@ fn main() {
     let mut cells2: Vec<&mut [bool]> = cells2.chunks_mut(COLS).collect();
 
     let seed_arr_len = ((COLS * ROWS * 4) as f32).sqrt() as usize;
-    let seed_arr: Vec<bool> = (0..(seed_arr_len))
-        .map(|_| rand::random::<f32>() > 0.7)
-        .collect();
+    let seed_arr: Vec<bool> = (0..(seed_arr_len)).map(|_| random::<f32>() > 0.7).collect();
     cells1
         .par_iter_mut()
         .zip(cells2.par_iter_mut())
