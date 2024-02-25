@@ -144,36 +144,26 @@ fn do_step(
         RenderMode::Reduce => {
             compute_cells_def();
 
-            // buffer
-            //     .par_iter_mut()
-            //     .enumerate()
-            //     .for_each(|(index, pixel)| {
-            //         *pixel = get_cell_color(cells_new[index / WIDTH][index % WIDTH]);
-            //     });
-            // buffer
-            //     .par_iter_mut()
-            //     .enumerate()
-            //     .for_each(|(index, pixel)| {
-            //         let mut count: usize = 0;
-            //         for y in 0..SIDE {
-            //             for x in 0..SIDE {
-            //                 count += cells_new[index / WIDTH * SIDE + y][index % WIDTH * SIDE + x]
-            //                     as usize;
-            //             }
-            //         }
-            //         *pixel = GREY_SHADES[count];
-            //     });
-            // for i in 0..HEIGHT {
-            //     for j in 0..WIDTH {
-            //         let mut count: usize = 0;
-            //         for y in 0..SIDE {
-            //             for x in 0..SIDE {
-            //                 count += cells_new[i * SIDE + y][j * SIDE + x] as usize;
-            //             }
-            //         }
-            //         buffer[i * WIDTH + j] = GREY_SHADES[count];
-            //     }
-            // }
+            cells_new
+                .par_iter()
+                .chunks(SIDE)
+                .zip(
+                    buffer
+                        .chunks_mut(WIDTH)
+                        .collect::<Vec<&mut [u32]>>()
+                        .par_iter_mut(),
+                )
+                .for_each(|(cells_chunk, buffer_chunk)| {
+                    for x in 0..WIDTH {
+                        let mut count = 0;
+                        for i in 0..SIDE {
+                            for j in 0..SIDE {
+                                count += cells_chunk[i][x * SIDE + j] as usize;
+                            }
+                        }
+                        buffer_chunk[x] = GREY_SHADES[count];
+                    }
+                });
         }
         RenderMode::Crop => {
             compute_cells_def();
