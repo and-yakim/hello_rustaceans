@@ -84,39 +84,23 @@ fn do_step<const N: usize>(
                         + cells_old[i][j + 1] as u8
                         + cells_old[i_inc][j + 1] as u8;
 
-                    let count = if flag {
-                        let count = left_triple1
-                            + cells_old[i_dec][j] as u8
-                            + cells_old[i_inc][j] as u8
-                            + right_triple;
-
+                    let count = left_triple1 + left_triple2 + right_triple - cells_old[i][j] as u8;
+                    if flag {
                         left_triple1 = right_triple;
-                        count
                     } else {
-                        let count = left_triple2
-                            + cells_old[i_dec][j] as u8
-                            + cells_old[i_inc][j] as u8
-                            + right_triple;
-
                         left_triple2 = right_triple;
-                        count
                     };
-                    let res = count == 3 || cells_old[i][j] && count == 2;
 
-                    cells_row.set(j, res);
+                    cells_row.set(j, count == 3 || cells_old[i][j] && count == 2);
                     flag = !flag;
                 }
                 let right_triple = cells_old[i_dec][0] as u8
                     + cells_old[i][0] as u8
                     + cells_old[i_inc][0] as u8;
 
-                let count = if flag { left_triple1 } else { left_triple2 }
-                    + cells_old[i_dec][COLS - 1] as u8
-                    + cells_old[i_inc][COLS - 1] as u8
-                    + right_triple;
-                let res = count == 3 || cells_old[i][COLS - 1] && count == 2;
+                let count = left_triple1 + left_triple2 + right_triple - cells_old[i][COLS - 1] as u8;
 
-                cells_row.set(COLS - 1, res);
+                cells_row.set(COLS - 1, count == 3 || cells_old[i][COLS - 1] && count == 2);
             });
         println!("{}", cells_instant.elapsed().as_millis());
     };
