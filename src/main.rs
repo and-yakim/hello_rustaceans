@@ -24,6 +24,10 @@ const MULTIPLIER: usize = 400;
 const COLS: usize = 64 * MULTIPLIER;
 const ROWS: usize = 36 * MULTIPLIER;
 
+// Aspects ratio 43:18
+// const COLS: usize = 3440;
+// const ROWS: usize = 1440;
+
 const fn scale_by_mode(val: usize) -> usize {
     match RENDER_MODE {
         RenderMode::OneToOne => val,
@@ -94,11 +98,11 @@ fn do_step<const N: usize>(
                     cells_row.set(j, count == 3 || cells_old[i][j] && count == 2);
                     flag = !flag;
                 }
-                let right_triple = cells_old[i_dec][0] as u8
-                    + cells_old[i][0] as u8
-                    + cells_old[i_inc][0] as u8;
+                let right_triple =
+                    cells_old[i_dec][0] as u8 + cells_old[i][0] as u8 + cells_old[i_inc][0] as u8;
 
-                let count = left_triple1 + left_triple2 + right_triple - cells_old[i][COLS - 1] as u8;
+                let count =
+                    left_triple1 + left_triple2 + right_triple - cells_old[i][COLS - 1] as u8;
 
                 cells_row.set(COLS - 1, count == 3 || cells_old[i][COLS - 1] && count == 2);
             });
@@ -273,6 +277,7 @@ fn main() {
             fps_instant = time::Instant::now();
             let fps = 1000000.0 / elapsed as f64;
             window.set_title(format!("CELLS: {COLS}x{ROWS} FPS: {fps:.1}").as_str());
+            println!("FPS: {:.1}", fps);
         }
         // same ~60 fps limit for cells computing
         if elapsed < 16600 {
