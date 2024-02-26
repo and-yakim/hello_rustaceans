@@ -79,12 +79,10 @@ fn do_step<const N: usize>(
                     cells_old[i_dec][0] as u8 + cells_old[i][0] as u8 + cells_old[i_inc][0] as u8;
                 let mut flag = true;
 
-                for j in 0..COLS {
-                    let i2_inc = (j as isize + 1).rem_euclid(COLS_) as usize;
-
-                    let right_triple = cells_old[i_dec][i2_inc] as u8
-                        + cells_old[i][i2_inc] as u8
-                        + cells_old[i_inc][i2_inc] as u8;
+                for j in 0..(COLS - 1) {
+                    let right_triple = cells_old[i_dec][j + 1] as u8
+                        + cells_old[i][j + 1] as u8
+                        + cells_old[i_inc][j + 1] as u8;
 
                     let count = if flag {
                         let count = left_triple1
@@ -103,11 +101,24 @@ fn do_step<const N: usize>(
                         left_triple2 = right_triple;
                         count
                     };
+                    let res = count == 3 || cells_old[i][j] && count == 2;
 
-                    cells_row.set(j, count == 3 || cells_old[i][j] && count == 2);
+                    cells_row.set(j, res);
                     flag = !flag;
                 }
+                let right_triple = cells_old[i_dec][0] as u8
+                    + cells_old[i][0] as u8
+                    + cells_old[i_inc][0] as u8;
+
+                let count = if flag { left_triple1 } else { left_triple2 }
+                    + cells_old[i_dec][COLS - 1] as u8
+                    + cells_old[i_inc][COLS - 1] as u8
+                    + right_triple;
+                let res = count == 3 || cells_old[i][COLS - 1] && count == 2;
+
+                cells_row.set(COLS - 1, res);
             });
+        println!("{}", cells_instant.elapsed().as_millis());
     };
 
     match RENDER_MODE {
@@ -223,7 +234,6 @@ fn do_step<const N: usize>(
                 });
         }
     }
-    println!("{}", cells_instant.elapsed().as_millis());
 }
 
 fn main() {
