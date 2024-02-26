@@ -14,9 +14,9 @@ enum RenderMode {
     Crop,
 }
 
-const RENDER_MODE: RenderMode = RenderMode::Reduce;
-const SIDE: usize = 8;
-const MULTIPLIER: usize = 160;
+const RENDER_MODE: RenderMode = RenderMode::Crop;
+const SIDE: usize = 50;
+const MULTIPLIER: usize = 400;
 // const RENDER_MODE: RenderMode = RenderMode::Crop;
 // const SIDE: usize = 100;
 // const MULTIPLIER: usize = 2000;
@@ -80,26 +80,24 @@ fn do_step<const N: usize>(
                 let mut flag = true;
 
                 for j in 0..COLS {
-                    let i1_dec = (i as isize - 1).rem_euclid(ROWS_) as usize;
-                    let i1_inc = (i as isize + 1).rem_euclid(ROWS_) as usize;
                     let i2_inc = (j as isize + 1).rem_euclid(COLS_) as usize;
 
-                    let right_triple = cells_old[i1_dec][i2_inc] as u8
+                    let right_triple = cells_old[i_dec][i2_inc] as u8
                         + cells_old[i][i2_inc] as u8
-                        + cells_old[i1_inc][i2_inc] as u8;
+                        + cells_old[i_inc][i2_inc] as u8;
 
                     let count = if flag {
                         let count = left_triple1
-                            + cells_old[i1_dec][j] as u8
-                            + cells_old[i1_inc][j] as u8
+                            + cells_old[i_dec][j] as u8
+                            + cells_old[i_inc][j] as u8
                             + right_triple;
 
                         left_triple1 = right_triple;
                         count
                     } else {
                         let count = left_triple2
-                            + cells_old[i1_dec][j] as u8
-                            + cells_old[i1_inc][j] as u8
+                            + cells_old[i_dec][j] as u8
+                            + cells_old[i_inc][j] as u8
                             + right_triple;
 
                         left_triple2 = right_triple;
@@ -136,26 +134,24 @@ fn do_step<const N: usize>(
                     let mut flag = true;
 
                     for j in 0..COLS {
-                        let i1_dec = (i as isize - 1).rem_euclid(ROWS_) as usize;
-                        let i1_inc = (i as isize + 1).rem_euclid(ROWS_) as usize;
                         let i2_inc = (j as isize + 1).rem_euclid(COLS_) as usize;
 
-                        let right_triple = cells_old[i1_dec][i2_inc] as u8
+                        let right_triple = cells_old[i_dec][i2_inc] as u8
                             + cells_old[i][i2_inc] as u8
-                            + cells_old[i1_inc][i2_inc] as u8;
+                            + cells_old[i_inc][i2_inc] as u8;
 
                         let count = if flag {
                             let count = left_triple1
-                                + cells_old[i1_dec][j] as u8
-                                + cells_old[i1_inc][j] as u8
+                                + cells_old[i_dec][j] as u8
+                                + cells_old[i_inc][j] as u8
                                 + right_triple;
 
                             left_triple1 = right_triple;
                             count
                         } else {
                             let count = left_triple2
-                                + cells_old[i1_dec][j] as u8
-                                + cells_old[i1_inc][j] as u8
+                                + cells_old[i_dec][j] as u8
+                                + cells_old[i_inc][j] as u8
                                 + right_triple;
 
                             left_triple2 = right_triple;
