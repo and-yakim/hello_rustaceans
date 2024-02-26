@@ -62,9 +62,9 @@ const GREY_SHADES: [u32; 5] = {
 const COLS_: isize = COLS as isize;
 const ROWS_: isize = ROWS as isize;
 
-fn do_step<const N: usize>(
-    cells_old: &Vec<BitArray<[usize; N]>>,
-    cells_new: &mut Vec<BitArray<[usize; N]>>,
+fn do_step<const N: usize, const M: usize>(
+    cells_old: &Box<[BitArray<[usize; N]>; M]>,
+    cells_new: &mut Box<[BitArray<[usize; N]>; M]>,
     buffer: &mut Vec<u32>,
     cells_instant: &time::Instant,
 ) {
@@ -226,8 +226,8 @@ fn do_step<const N: usize>(
 
 fn main() {
     let start_instant = time::Instant::now();
-    let mut cells1 = vec![bitarr!(0; COLS); ROWS];
-    let mut cells2 = vec![bitarr!(0; COLS); ROWS];
+    let mut cells1 = Box::new([bitarr!(0; COLS); ROWS]);
+    let mut cells2 = Box::new([bitarr!(0; COLS); ROWS]);
 
     let seed_arr_len = ((COLS * ROWS * 4) as f32).sqrt() as usize;
     let seed_arr: Vec<bool> = (0..(seed_arr_len)).map(|_| random::<f32>() > 0.7).collect();
