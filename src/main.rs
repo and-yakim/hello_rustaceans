@@ -38,12 +38,11 @@ const fn scale_by_mode(val: usize) -> usize {
 const WIDTH: usize = scale_by_mode(COLS);
 const HEIGHT: usize = scale_by_mode(ROWS);
 
-const WHITE: u32 = 0xFFFFFFFF;
-const BLACK: u32 = 0x00000000;
+#[allow(dead_code)]
 const fn get_cell_color(val: bool) -> u32 {
     match val {
-        true => BLACK,
-        false => WHITE,
+        true => 0x00000000,  // BLACK
+        false => 0xFFFFFFFF, // WHITE
     }
 }
 
@@ -59,114 +58,65 @@ const GREY_SHADES: [u32; 5] = {
     res
 };
 
-const COLS_: isize = COLS as isize;
+// const COLS_: isize = COLS as isize;
 const ROWS_: isize = ROWS as isize;
 
-fn do_step<const N: usize, const M: usize>(
+fn compute_cells<const N: usize, const M: usize>(
     cells_old: &Box<[BitArray<[usize; N]>; M]>,
     cells_new: &mut Box<[BitArray<[usize; N]>; M]>,
-    buffer: &mut Vec<u32>,
-    cells_instant: &time::Instant,
 ) {
-    let mut compute_cells_def = || {
-        cells_new
-            .par_iter_mut()
-            .enumerate()
-            .for_each(|(i, cells_row)| {
-                let i_dec = (i as isize - 1).rem_euclid(ROWS_) as usize;
-                let i_inc = (i as isize + 1).rem_euclid(ROWS_) as usize;
+    cells_new
+        .par_iter_mut()
+        .enumerate()
+        .for_each(|(i, cells_row)| {
+            let i_dec = (i as isize - 1).rem_euclid(ROWS_) as usize;
+            let i_inc = (i as isize + 1).rem_euclid(ROWS_) as usize;
 
-                let mut left_triple1 = cells_old[i_dec][COLS - 1] as u8
-                    + cells_old[i][COLS - 1] as u8
-                    + cells_old[i_inc][COLS - 1] as u8;
-                let mut left_triple2 =
-                    cells_old[i_dec][0] as u8 + cells_old[i][0] as u8 + cells_old[i_inc][0] as u8;
-                let mut flag = true;
+            let mut left_triple1 = cells_old[i_dec][COLS - 1] as u8
+                + cells_old[i][COLS - 1] as u8
+                + cells_old[i_inc][COLS - 1] as u8;
+            let mut left_triple2 =
+                cells_old[i_dec][0] as u8 + cells_old[i][0] as u8 + cells_old[i_inc][0] as u8;
+            let mut flag = true;
 
-                for j in 0..(COLS - 1) {
-                    let right_triple = cells_old[i_dec][j + 1] as u8
-                        + cells_old[i][j + 1] as u8
-                        + cells_old[i_inc][j + 1] as u8;
+            for j in 0..(COLS - 1) {
+                let right_triple = cells_old[i_dec][j + 1] as u8
+                    + cells_old[i][j + 1] as u8
+                    + cells_old[i_inc][j + 1] as u8;
 
-                    let count = left_triple1 + left_triple2 + right_triple - cells_old[i][j] as u8;
-                    if flag {
-                        left_triple1 = right_triple;
-                    } else {
-                        left_triple2 = right_triple;
-                    };
+                let count = left_triple1 + left_triple2 + right_triple - cells_old[i][j] as u8;
+                if flag {
+                    left_triple1 = right_triple;
+                } else {
+                    left_triple2 = right_triple;
+                };
 
-                    cells_row.set(j, (count | cells_old[i][j] as u8) == 3);
-                    flag = !flag;
-                }
-                let right_triple =
-                    cells_old[i_dec][0] as u8 + cells_old[i][0] as u8 + cells_old[i_inc][0] as u8;
+                cells_row.set(j, (count | cells_old[i][j] as u8) == 3);
+                flag = !flag;
+            }
+            let right_triple =
+                cells_old[i_dec][0] as u8 + cells_old[i][0] as u8 + cells_old[i_inc][0] as u8;
 
-                let count =
-                    left_triple1 + left_triple2 + right_triple - cells_old[i][COLS - 1] as u8;
+            let count = left_triple1 + left_triple2 + right_triple - cells_old[i][COLS - 1] as u8;
 
-                cells_row.set(COLS - 1, (count | cells_old[i][COLS - 1] as u8) == 3);
-            });
-        println!("{}", cells_instant.elapsed().as_millis());
-    };
+            cells_row.set(COLS - 1, (count | cells_old[i][COLS - 1] as u8) == 3);
+        });
+}
 
+fn render_cells<const N: usize, const M: usize>(
+    cells_new: &Box<[BitArray<[usize; N]>; M]>,
+    buffer: &mut Vec<u32>,
+) {
     match RENDER_MODE {
-        RenderMode::OneToOne => {
-            cells_new
+        RenderMode::OneToOne | RenderMode::Crop => {
+            buffer
                 .par_iter_mut()
-                .zip_eq(
-                    buffer
-                        .chunks_mut(COLS)
-                        .collect::<Vec<&mut [u32]>>()
-                        .par_iter_mut(),
-                )
                 .enumerate()
-                .for_each(|(i, (cells_row, buffer_chunk))| {
-                    let i_dec = (i as isize - 1).rem_euclid(ROWS_) as usize;
-                    let i_inc = (i as isize + 1).rem_euclid(ROWS_) as usize;
-
-                    let mut left_triple1 = cells_old[i_dec][COLS - 1] as u8
-                        + cells_old[i][COLS - 1] as u8
-                        + cells_old[i_inc][COLS - 1] as u8;
-                    let mut left_triple2 = cells_old[i_dec][0] as u8
-                        + cells_old[i][0] as u8
-                        + cells_old[i_inc][0] as u8;
-                    let mut flag = true;
-
-                    for j in 0..COLS {
-                        let i2_inc = (j as isize + 1).rem_euclid(COLS_) as usize;
-
-                        let right_triple = cells_old[i_dec][i2_inc] as u8
-                            + cells_old[i][i2_inc] as u8
-                            + cells_old[i_inc][i2_inc] as u8;
-
-                        let count = if flag {
-                            let count = left_triple1
-                                + cells_old[i_dec][j] as u8
-                                + cells_old[i_inc][j] as u8
-                                + right_triple;
-
-                            left_triple1 = right_triple;
-                            count
-                        } else {
-                            let count = left_triple2
-                                + cells_old[i_dec][j] as u8
-                                + cells_old[i_inc][j] as u8
-                                + right_triple;
-
-                            left_triple2 = right_triple;
-                            count
-                        };
-                        let res = count == 3 || cells_old[i][j] && count == 2;
-
-                        cells_row.set(j, res);
-                        buffer_chunk[j] = get_cell_color(res);
-                        flag = !flag;
-                    }
+                .for_each(|(index, pixel)| {
+                    *pixel = get_cell_color(cells_new[index / WIDTH][index % WIDTH]);
                 });
         }
         RenderMode::Enlarge => {
-            compute_cells_def();
-
             cells_new
                 .par_iter()
                 .zip(
@@ -187,8 +137,6 @@ fn do_step<const N: usize, const M: usize>(
                 });
         }
         RenderMode::Reduce => {
-            compute_cells_def();
-
             cells_new
                 .par_iter()
                 .chunks(SIDE)
@@ -211,17 +159,18 @@ fn do_step<const N: usize, const M: usize>(
                     }
                 });
         }
-        RenderMode::Crop => {
-            compute_cells_def();
-
-            buffer
-                .par_iter_mut()
-                .enumerate()
-                .for_each(|(index, pixel)| {
-                    *pixel = get_cell_color(cells_new[index / WIDTH][index % WIDTH]);
-                });
-        }
     }
+}
+
+fn do_step<const N: usize, const M: usize>(
+    cells_old: &Box<[BitArray<[usize; N]>; M]>,
+    cells_new: &mut Box<[BitArray<[usize; N]>; M]>,
+    buffer: &mut Vec<u32>,
+    cells_instant: &time::Instant,
+) {
+    compute_cells(&cells_old, cells_new);
+    render_cells(&cells_new, buffer);
+    println!("{}", cells_instant.elapsed().as_millis());
 }
 
 fn main() {
