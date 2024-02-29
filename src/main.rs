@@ -95,7 +95,7 @@ fn do_step<const N: usize, const M: usize>(
                         left_triple2 = right_triple;
                     };
 
-                    cells_row.set(j, count == 3 || cells_old[i][j] && count == 2);
+                    cells_row.set(j, (count | cells_old[i][j] as u8) == 3);
                     flag = !flag;
                 }
                 let right_triple =
@@ -104,7 +104,7 @@ fn do_step<const N: usize, const M: usize>(
                 let count =
                     left_triple1 + left_triple2 + right_triple - cells_old[i][COLS - 1] as u8;
 
-                cells_row.set(COLS - 1, count == 3 || cells_old[i][COLS - 1] && count == 2);
+                cells_row.set(COLS - 1, (count | cells_old[i][COLS - 1] as u8) == 3);
             });
         println!("{}", cells_instant.elapsed().as_millis());
     };
@@ -231,18 +231,13 @@ fn main() {
 
     let seed_arr_len = ((COLS * ROWS * 4) as f32).sqrt() as usize;
     let seed_arr: Vec<bool> = (0..(seed_arr_len)).map(|_| random::<f32>() > 0.7).collect();
-    cells1
-        .par_iter_mut()
-        .zip(cells2.par_iter_mut())
-        .enumerate()
-        .for_each(|(i, (row1, row2))| {
-            for j in 0..COLS {
-                let res = seed_arr[(i * j).rem_euclid(seed_arr_len)];
-                row1.set(j, res);
-                row2.set(j, res);
-            }
-        });
-    println!("{}", start_instant.elapsed().as_millis());
+    cells2.par_iter_mut().enumerate().for_each(|(i, row)| {
+        for j in 0..COLS {
+            let res = seed_arr[(i * j).rem_euclid(seed_arr_len)];
+            row.set(j, res);
+        }
+    });
+    println!("Init: {}", start_instant.elapsed().as_millis());
 
     let mut buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
 
@@ -262,8 +257,12 @@ fn main() {
     let mut flag = false;
     let mut cells_instant = time::Instant::now();
     let mut fps_instant = time::Instant::now();
+    let time_limit = 5;
 
-    while window.is_open() && !window.is_key_down(Key::Escape) {
+    while window.is_open()
+        && !window.is_key_down(Key::Escape)
+        && start_instant.elapsed().as_secs() < time_limit
+    {
         if flag {
             do_step(&cells1, &mut cells2, &mut buffer, &cells_instant);
         } else {
