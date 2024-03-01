@@ -70,14 +70,13 @@ fn compute_cells<const N: usize, const M: usize>(
         .enumerate()
         .for_each(|(i, cells_row)| {
             let i_dec = (i as isize - 1).rem_euclid(ROWS_) as usize;
-            let i_inc = (i as isize + 1).rem_euclid(ROWS_) as usize;
+            let i_inc = (i + 1) % ROWS;
 
             let mut left_triple1 = cells_old[i_dec][COLS - 1] as u8
                 + cells_old[i][COLS - 1] as u8
                 + cells_old[i_inc][COLS - 1] as u8;
             let mut left_triple2 =
                 cells_old[i_dec][0] as u8 + cells_old[i][0] as u8 + cells_old[i_inc][0] as u8;
-            let mut flag = true;
 
             for j in 0..(COLS - 1) {
                 let right_triple = cells_old[i_dec][j + 1] as u8
@@ -85,14 +84,13 @@ fn compute_cells<const N: usize, const M: usize>(
                     + cells_old[i_inc][j + 1] as u8;
 
                 let count = left_triple1 + left_triple2 + right_triple - cells_old[i][j] as u8;
-                if flag {
-                    left_triple1 = right_triple;
-                } else {
+                if (j % 2) != 0 {
                     left_triple2 = right_triple;
+                } else {
+                    left_triple1 = right_triple;
                 };
 
                 cells_row.set(j, (count | cells_old[i][j] as u8) == 3);
-                flag = !flag;
             }
             let right_triple =
                 cells_old[i_dec][0] as u8 + cells_old[i][0] as u8 + cells_old[i_inc][0] as u8;
