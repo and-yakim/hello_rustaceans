@@ -5,7 +5,7 @@ use bitvec::prelude::*;
 use minifb::{Key, Window, WindowOptions};
 use rand::random;
 use rayon::prelude::*;
-use std::simd::u8x8;
+use std::simd::u8x16;
 use std::{thread, time};
 
 #[allow(dead_code)]
@@ -64,13 +64,13 @@ const GREY_SHADES: [u32; 5] = {
 const ROWS_: isize = ROWS as isize;
 
 const COLS_COMPACT: usize = COLS / 64;
-const CHUNK_SIZE: usize = 8;
+const CHUNK_SIZE: usize = 16;
 
 type Field = [BitArray<[usize; COLS_COMPACT]>; ROWS];
 
 macro_rules! chunk_for_simd {
     ($arr:ident($i:expr)[$j:expr], ($i_dec:expr, $i_inc:expr)) => {
-        u8x8::from_array([
+        u8x16::from_array([
             $arr[$i_dec][$j] as u8,
             $arr[$i][$j] as u8,
             $arr[$i + 1][$j] as u8,
@@ -79,7 +79,15 @@ macro_rules! chunk_for_simd {
             $arr[$i + 4][$j] as u8,
             $arr[$i + 5][$j] as u8,
             $arr[$i + 6][$j] as u8,
-        ]) + u8x8::from_array([
+            $arr[$i + 7][$j] as u8,
+            $arr[$i + 8][$j] as u8,
+            $arr[$i + 9][$j] as u8,
+            $arr[$i + 10][$j] as u8,
+            $arr[$i + 11][$j] as u8,
+            $arr[$i + 12][$j] as u8,
+            $arr[$i + 13][$j] as u8,
+            $arr[$i + 14][$j] as u8,
+        ]) + u8x16::from_array([
             $arr[$i][$j] as u8,
             $arr[$i + 1][$j] as u8,
             $arr[$i + 2][$j] as u8,
@@ -88,7 +96,15 @@ macro_rules! chunk_for_simd {
             $arr[$i + 5][$j] as u8,
             $arr[$i + 6][$j] as u8,
             $arr[$i + 7][$j] as u8,
-        ]) + u8x8::from_array([
+            $arr[$i + 8][$j] as u8,
+            $arr[$i + 9][$j] as u8,
+            $arr[$i + 10][$j] as u8,
+            $arr[$i + 11][$j] as u8,
+            $arr[$i + 12][$j] as u8,
+            $arr[$i + 13][$j] as u8,
+            $arr[$i + 14][$j] as u8,
+            $arr[$i + 15][$j] as u8,
+        ]) + u8x16::from_array([
             $arr[$i + 1][$j] as u8,
             $arr[$i + 2][$j] as u8,
             $arr[$i + 3][$j] as u8,
@@ -96,11 +112,19 @@ macro_rules! chunk_for_simd {
             $arr[$i + 5][$j] as u8,
             $arr[$i + 6][$j] as u8,
             $arr[$i + 7][$j] as u8,
+            $arr[$i + 8][$j] as u8,
+            $arr[$i + 9][$j] as u8,
+            $arr[$i + 10][$j] as u8,
+            $arr[$i + 11][$j] as u8,
+            $arr[$i + 12][$j] as u8,
+            $arr[$i + 13][$j] as u8,
+            $arr[$i + 14][$j] as u8,
+            $arr[$i + 15][$j] as u8,
             $arr[$i_inc][$j] as u8,
         ])
     };
     ($arr:ident($i:expr)[$j:expr]) => {
-        u8x8::from_array([
+        u8x16::from_array([
             $arr[$i][$j] as u8,
             $arr[$i + 1][$j] as u8,
             $arr[$i + 2][$j] as u8,
@@ -109,6 +133,14 @@ macro_rules! chunk_for_simd {
             $arr[$i + 5][$j] as u8,
             $arr[$i + 6][$j] as u8,
             $arr[$i + 7][$j] as u8,
+            $arr[$i + 8][$j] as u8,
+            $arr[$i + 9][$j] as u8,
+            $arr[$i + 10][$j] as u8,
+            $arr[$i + 11][$j] as u8,
+            $arr[$i + 12][$j] as u8,
+            $arr[$i + 13][$j] as u8,
+            $arr[$i + 14][$j] as u8,
+            $arr[$i + 15][$j] as u8,
         ])
     };
 }
