@@ -60,10 +60,10 @@ const GREY_SHADES: [u32; 5] = {
 
 // const COLS_: isize = COLS as isize;
 const ROWS_: isize = ROWS as isize;
-
-fn compute_cells<const N: usize, const M: usize>(
-    cells_old: &Box<[BitArray<[usize; N]>; M]>,
-    cells_new: &mut Box<[BitArray<[usize; N]>; M]>,
+const COLS_COMPACT: usize = COLS / 64;
+fn compute_cells(
+    cells_old: &Box<[BitArray<[usize; COLS_COMPACT]>; ROWS]>,
+    cells_new: &mut Box<[BitArray<[usize; COLS_COMPACT]>; ROWS]>,
 ) {
     cells_new
         .par_iter_mut()
@@ -101,10 +101,7 @@ fn compute_cells<const N: usize, const M: usize>(
         });
 }
 
-fn render_cells<const N: usize, const M: usize>(
-    cells_new: &Box<[BitArray<[usize; N]>; M]>,
-    buffer: &mut Vec<u32>,
-) {
+fn render_cells(cells_new: &Box<[BitArray<[usize; COLS_COMPACT]>; ROWS]>, buffer: &mut Vec<u32>) {
     match RENDER_MODE {
         RenderMode::OneToOne | RenderMode::Crop => {
             buffer
@@ -160,9 +157,9 @@ fn render_cells<const N: usize, const M: usize>(
     }
 }
 
-fn do_step<const N: usize, const M: usize>(
-    cells_old: &Box<[BitArray<[usize; N]>; M]>,
-    cells_new: &mut Box<[BitArray<[usize; N]>; M]>,
+fn do_step(
+    cells_old: &Box<[BitArray<[usize; COLS_COMPACT]>; ROWS]>,
+    cells_new: &mut Box<[BitArray<[usize; COLS_COMPACT]>; ROWS]>,
     buffer: &mut Vec<u32>,
     cells_instant: &time::Instant,
 ) {
