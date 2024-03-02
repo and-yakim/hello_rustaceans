@@ -62,42 +62,50 @@ const GREY_SHADES: [u32; 5] = {
 const ROWS_: isize = ROWS as isize;
 
 const COLS_COMPACT: usize = COLS / 64;
+const CHUNK_SIZE: usize = 8;
+
 type Field = [BitArray<[usize; COLS_COMPACT]>; ROWS];
 
 fn compute_cells(cells_old: &Box<Field>, cells_new: &mut Box<Field>) {
     cells_new
+        .chunks_mut(CHUNK_SIZE)
+        .collect::<Vec<_>>()
         .par_iter_mut()
         .enumerate()
-        .for_each(|(i, cells_row)| {
-            let i_dec = (i as isize - 1).rem_euclid(ROWS_) as usize;
-            let i_inc = (i + 1) % ROWS;
+        .for_each(|(i_chunk, cells_chunk)| {
+            for (k, cells_row) in cells_chunk.into_iter().enumerate() {
+                let i = i_chunk * CHUNK_SIZE + k;
+                let i_dec = (i as isize - 1).rem_euclid(ROWS_) as usize;
+                let i_inc = (i + 1) % ROWS;
 
-            let mut left_triple1 = cells_old[i_dec][COLS - 1] as u8
-                + cells_old[i][COLS - 1] as u8
-                + cells_old[i_inc][COLS - 1] as u8;
-            let mut left_triple2 =
-                cells_old[i_dec][0] as u8 + cells_old[i][0] as u8 + cells_old[i_inc][0] as u8;
+                let mut left_triple1 = cells_old[i_dec][COLS - 1] as u8
+                    + cells_old[i][COLS - 1] as u8
+                    + cells_old[i_inc][COLS - 1] as u8;
+                let mut left_triple2 =
+                    cells_old[i_dec][0] as u8 + cells_old[i][0] as u8 + cells_old[i_inc][0] as u8;
 
-            for j in 0..(COLS - 1) {
-                let right_triple = cells_old[i_dec][j + 1] as u8
-                    + cells_old[i][j + 1] as u8
-                    + cells_old[i_inc][j + 1] as u8;
+                for j in 0..(COLS - 1) {
+                    let right_triple = cells_old[i_dec][j + 1] as u8
+                        + cells_old[i][j + 1] as u8
+                        + cells_old[i_inc][j + 1] as u8;
 
-                let count = left_triple1 + left_triple2 + right_triple - cells_old[i][j] as u8;
-                if (j % 2) != 0 {
-                    left_triple2 = right_triple;
-                } else {
-                    left_triple1 = right_triple;
-                };
+                    let count = left_triple1 + left_triple2 + right_triple - cells_old[i][j] as u8;
+                    if (j % 2) != 0 {
+                        left_triple2 = right_triple;
+                    } else {
+                        left_triple1 = right_triple;
+                    };
 
-                cells_row.set(j, (count | cells_old[i][j] as u8) == 3);
+                    cells_row.set(j, (count | cells_old[i][j] as u8) == 3);
+                }
+                let right_triple =
+                    cells_old[i_dec][0] as u8 + cells_old[i][0] as u8 + cells_old[i_inc][0] as u8;
+
+                let count =
+                    left_triple1 + left_triple2 + right_triple - cells_old[i][COLS - 1] as u8;
+
+                cells_row.set(COLS - 1, (count | cells_old[i][COLS - 1] as u8) == 3);
             }
-            let right_triple =
-                cells_old[i_dec][0] as u8 + cells_old[i][0] as u8 + cells_old[i_inc][0] as u8;
-
-            let count = left_triple1 + left_triple2 + right_triple - cells_old[i][COLS - 1] as u8;
-
-            cells_row.set(COLS - 1, (count | cells_old[i][COLS - 1] as u8) == 3);
         });
 }
 
