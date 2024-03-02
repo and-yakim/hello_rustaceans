@@ -196,8 +196,7 @@ fn main() {
     let seed_arr: Vec<bool> = (0..(seed_arr_len)).map(|_| random::<f32>() > 0.7).collect();
     cells2.par_iter_mut().enumerate().for_each(|(i, row)| {
         for j in 0..COLS {
-            let res = seed_arr[(i * j).rem_euclid(seed_arr_len)];
-            row.set(j, res);
+            row.set(j, seed_arr[((i * j) ^ j) % seed_arr_len]);
         }
     });
     println!("Init: {}", start_instant.elapsed().as_millis());
