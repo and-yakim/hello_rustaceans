@@ -1,9 +1,11 @@
+#![feature(portable_simd)]
 extern crate minifb;
 
 use bitvec::prelude::*;
 use minifb::{Key, Window, WindowOptions};
-use rand::{self, random};
+use rand::random;
 use rayon::prelude::*;
+use std::simd::u8x8;
 use std::{thread, time};
 
 #[allow(dead_code)]
@@ -66,6 +68,51 @@ const CHUNK_SIZE: usize = 8;
 
 type Field = [BitArray<[usize; COLS_COMPACT]>; ROWS];
 
+macro_rules! chunk_for_simd {
+    ($arr:ident($i:expr)[$j:expr], ($i_dec:expr, $i_inc:expr)) => {
+        u8x8::from_array([
+            $arr[$i_dec][$j] as u8,
+            $arr[$i][$j] as u8,
+            $arr[$i + 1][$j] as u8,
+            $arr[$i + 2][$j] as u8,
+            $arr[$i + 3][$j] as u8,
+            $arr[$i + 4][$j] as u8,
+            $arr[$i + 5][$j] as u8,
+            $arr[$i + 6][$j] as u8,
+        ]) + u8x8::from_array([
+            $arr[$i][$j] as u8,
+            $arr[$i + 1][$j] as u8,
+            $arr[$i + 2][$j] as u8,
+            $arr[$i + 3][$j] as u8,
+            $arr[$i + 4][$j] as u8,
+            $arr[$i + 5][$j] as u8,
+            $arr[$i + 6][$j] as u8,
+            $arr[$i + 7][$j] as u8,
+        ]) + u8x8::from_array([
+            $arr[$i + 1][$j] as u8,
+            $arr[$i + 2][$j] as u8,
+            $arr[$i + 3][$j] as u8,
+            $arr[$i + 4][$j] as u8,
+            $arr[$i + 5][$j] as u8,
+            $arr[$i + 6][$j] as u8,
+            $arr[$i + 7][$j] as u8,
+            $arr[$i_inc][$j] as u8,
+        ])
+    };
+    ($arr:ident($i:expr)[$j:expr]) => {
+        u8x8::from_array([
+            $arr[$i][$j] as u8,
+            $arr[$i + 1][$j] as u8,
+            $arr[$i + 2][$j] as u8,
+            $arr[$i + 3][$j] as u8,
+            $arr[$i + 4][$j] as u8,
+            $arr[$i + 5][$j] as u8,
+            $arr[$i + 6][$j] as u8,
+            $arr[$i + 7][$j] as u8,
+        ])
+    };
+}
+
 fn compute_cells(cells_old: &Box<Field>, cells_new: &mut Box<Field>) {
     cells_new
         .chunks_mut(CHUNK_SIZE)
@@ -73,49 +120,35 @@ fn compute_cells(cells_old: &Box<Field>, cells_new: &mut Box<Field>) {
         .par_iter_mut()
         .enumerate()
         .for_each(|(i_chunk, cells_chunk)| {
-            let start_index = i_chunk * CHUNK_SIZE;
-            let mut triples1 = [0; CHUNK_SIZE];
-            let mut triples2 = [0; CHUNK_SIZE];
-            for k in 0..CHUNK_SIZE {
-                let i = start_index + k;
-                let i_dec = (i as isize - 1).rem_euclid(ROWS_) as usize;
-                let i_inc = (i + 1) % ROWS;
+            let start_i = i_chunk * CHUNK_SIZE;
+            let i_dec = (start_i as isize - 1).rem_euclid(ROWS_) as usize;
+            let i_inc = (start_i + CHUNK_SIZE) % ROWS;
 
-                triples1[k] = cells_old[i_dec][COLS - 1] as u8
-                    + cells_old[i][COLS - 1] as u8
-                    + cells_old[i_inc][COLS - 1] as u8;
-                triples2[k] =
-                    cells_old[i_dec][0] as u8 + cells_old[i][0] as u8 + cells_old[i_inc][0] as u8;
-            }
-            for k in 0..CHUNK_SIZE {
-                let i = start_index + k;
-                let i_dec = (i as isize - 1).rem_euclid(ROWS_) as usize;
-                let i_inc = (i + 1) % ROWS;
-                for j in 0..(COLS - 1) {
-                    let right_triple = cells_old[i_dec][j + 1] as u8
-                        + cells_old[i][j + 1] as u8
-                        + cells_old[i_inc][j + 1] as u8;
+            let mut triples1 = chunk_for_simd!(cells_old(start_i)[COLS - 1], (i_dec, i_inc));
+            let mut triples2 = chunk_for_simd!(cells_old(start_i)[0], (i_dec, i_inc));
 
-                    let count = triples1[k] + triples2[k] + right_triple - cells_old[i][j] as u8;
-                    if (j % 2) != 0 {
-                        triples2[k] = right_triple;
-                    } else {
-                        triples1[k] = right_triple;
-                    };
+            for j in 0..(COLS - 1) {
+                let right_triples = chunk_for_simd!(cells_old(start_i)[j + 1], (i_dec, i_inc));
 
-                    cells_chunk[k].set(j, (count | cells_old[i][j] as u8) == 3);
+                let alives = chunk_for_simd!(cells_old(start_i)[j]);
+                let counts = triples1 + triples2 + right_triples - alives;
+                if (j % 2) != 0 {
+                    triples2 = right_triples;
+                } else {
+                    triples1 = right_triples;
+                };
+
+                for k in 0..CHUNK_SIZE {
+                    cells_chunk[k].set(j, (counts[k] | alives[k] as u8) == 3);
                 }
             }
+            let right_triples = chunk_for_simd!(cells_old(start_i)[0], (i_dec, i_inc));
+
+            let alives = chunk_for_simd!(cells_old(start_i)[COLS - 1]);
+            let counts = triples1 + triples2 + right_triples - alives;
+
             for k in 0..CHUNK_SIZE {
-                let i = start_index + k;
-                let i_dec = (i as isize - 1).rem_euclid(ROWS_) as usize;
-                let i_inc = (i + 1) % ROWS;
-                let right_triple =
-                    cells_old[i_dec][0] as u8 + cells_old[i][0] as u8 + cells_old[i_inc][0] as u8;
-
-                let count = triples1[k] + triples2[k] + right_triple - cells_old[i][COLS - 1] as u8;
-
-                cells_chunk[k].set(COLS - 1, (count | cells_old[i][COLS - 1] as u8) == 3);
+                cells_chunk[k].set(COLS - 1, (counts[k] | alives[k] as u8) == 3);
             }
         });
 }
