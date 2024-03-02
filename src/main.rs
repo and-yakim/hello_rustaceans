@@ -73,38 +73,49 @@ fn compute_cells(cells_old: &Box<Field>, cells_new: &mut Box<Field>) {
         .par_iter_mut()
         .enumerate()
         .for_each(|(i_chunk, cells_chunk)| {
-            for (k, cells_row) in cells_chunk.into_iter().enumerate() {
-                let i = i_chunk * CHUNK_SIZE + k;
+            let start_index = i_chunk * CHUNK_SIZE;
+            let mut triples1 = [0; CHUNK_SIZE];
+            let mut triples2 = [0; CHUNK_SIZE];
+            for k in 0..CHUNK_SIZE {
+                let i = start_index + k;
                 let i_dec = (i as isize - 1).rem_euclid(ROWS_) as usize;
                 let i_inc = (i + 1) % ROWS;
 
-                let mut left_triple1 = cells_old[i_dec][COLS - 1] as u8
+                triples1[k] = cells_old[i_dec][COLS - 1] as u8
                     + cells_old[i][COLS - 1] as u8
                     + cells_old[i_inc][COLS - 1] as u8;
-                let mut left_triple2 =
+                triples2[k] =
                     cells_old[i_dec][0] as u8 + cells_old[i][0] as u8 + cells_old[i_inc][0] as u8;
-
+            }
+            for k in 0..CHUNK_SIZE {
+                let i = start_index + k;
+                let i_dec = (i as isize - 1).rem_euclid(ROWS_) as usize;
+                let i_inc = (i + 1) % ROWS;
                 for j in 0..(COLS - 1) {
                     let right_triple = cells_old[i_dec][j + 1] as u8
                         + cells_old[i][j + 1] as u8
                         + cells_old[i_inc][j + 1] as u8;
 
-                    let count = left_triple1 + left_triple2 + right_triple - cells_old[i][j] as u8;
+                    let count = triples1[k] + triples2[k] + right_triple - cells_old[i][j] as u8;
                     if (j % 2) != 0 {
-                        left_triple2 = right_triple;
+                        triples2[k] = right_triple;
                     } else {
-                        left_triple1 = right_triple;
+                        triples1[k] = right_triple;
                     };
 
-                    cells_row.set(j, (count | cells_old[i][j] as u8) == 3);
+                    cells_chunk[k].set(j, (count | cells_old[i][j] as u8) == 3);
                 }
+            }
+            for k in 0..CHUNK_SIZE {
+                let i = start_index + k;
+                let i_dec = (i as isize - 1).rem_euclid(ROWS_) as usize;
+                let i_inc = (i + 1) % ROWS;
                 let right_triple =
                     cells_old[i_dec][0] as u8 + cells_old[i][0] as u8 + cells_old[i_inc][0] as u8;
 
-                let count =
-                    left_triple1 + left_triple2 + right_triple - cells_old[i][COLS - 1] as u8;
+                let count = triples1[k] + triples2[k] + right_triple - cells_old[i][COLS - 1] as u8;
 
-                cells_row.set(COLS - 1, (count | cells_old[i][COLS - 1] as u8) == 3);
+                cells_chunk[k].set(COLS - 1, (count | cells_old[i][COLS - 1] as u8) == 3);
             }
         });
 }
