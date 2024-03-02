@@ -60,11 +60,11 @@ const GREY_SHADES: [u32; 5] = {
 
 // const COLS_: isize = COLS as isize;
 const ROWS_: isize = ROWS as isize;
+
 const COLS_COMPACT: usize = COLS / 64;
-fn compute_cells(
-    cells_old: &Box<[BitArray<[usize; COLS_COMPACT]>; ROWS]>,
-    cells_new: &mut Box<[BitArray<[usize; COLS_COMPACT]>; ROWS]>,
-) {
+type Field = [BitArray<[usize; COLS_COMPACT]>; ROWS];
+
+fn compute_cells(cells_old: &Box<Field>, cells_new: &mut Box<Field>) {
     cells_new
         .par_iter_mut()
         .enumerate()
@@ -101,7 +101,7 @@ fn compute_cells(
         });
 }
 
-fn render_cells(cells_new: &Box<[BitArray<[usize; COLS_COMPACT]>; ROWS]>, buffer: &mut Vec<u32>) {
+fn render_cells(cells_new: &Box<Field>, buffer: &mut Vec<u32>) {
     match RENDER_MODE {
         RenderMode::OneToOne | RenderMode::Crop => {
             buffer
@@ -158,8 +158,8 @@ fn render_cells(cells_new: &Box<[BitArray<[usize; COLS_COMPACT]>; ROWS]>, buffer
 }
 
 fn do_step(
-    cells_old: &Box<[BitArray<[usize; COLS_COMPACT]>; ROWS]>,
-    cells_new: &mut Box<[BitArray<[usize; COLS_COMPACT]>; ROWS]>,
+    cells_old: &Box<Field>,
+    cells_new: &mut Box<Field>,
     buffer: &mut Vec<u32>,
     cells_instant: &time::Instant,
 ) {
@@ -170,8 +170,8 @@ fn do_step(
 
 fn main() {
     let start_instant = time::Instant::now();
-    let mut cells1 = Box::new([bitarr!(0; COLS); ROWS]);
-    let mut cells2 = Box::new([bitarr!(0; COLS); ROWS]);
+    let mut cells1: Box<Field> = Box::new([bitarr!(0; COLS); ROWS]);
+    let mut cells2: Box<Field> = Box::new([bitarr!(0; COLS); ROWS]);
 
     let seed_arr_len = ((COLS * ROWS * 4) as f32).sqrt() as usize;
     let seed_arr: Vec<bool> = (0..(seed_arr_len)).map(|_| random::<f32>() > 0.7).collect();
