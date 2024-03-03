@@ -5,7 +5,7 @@ use bitvec::prelude::*;
 use minifb::{Key, Window, WindowOptions};
 use rand::random;
 use rayon::prelude::*;
-use std::simd::u8x16;
+use std::simd::{u8x16, Simd};
 use std::{thread, time};
 
 #[allow(dead_code)]
@@ -60,52 +60,25 @@ const GREY_SHADES: [u32; 5] = {
     res
 };
 
-// const COLS_: isize = COLS as isize;
 const ROWS_: isize = ROWS as isize;
-
 const COLS_USIZE: usize = COLS / 64;
-const ROWS_USIZE: usize = ROWS / 64;
 const CHUNK_SIZE: usize = 16;
 
 type Field<const N: usize, const M: usize> = [BitArray<[usize; N]>; M];
 
-macro_rules! chunk_for_simd {
+fn get_triple_simd(values: [u8; 18]) -> (Simd<u8, 16>, Simd<u8, 16>) {
+    let alives = u8x16::from_slice(&values[1..=CHUNK_SIZE]);
+    (
+        alives,
+        u8x16::from_slice(&values[2..]) + alives + u8x16::from_slice(&values[..CHUNK_SIZE]),
+    )
+}
+
+macro_rules! get_simd {
     ($arr:ident($i:expr)[$j:expr], ($i_dec:expr, $i_inc:expr)) => {
-        u8x16::from_array([
+        get_triple_simd([
             $arr[$i_dec][$j] as u8,
             $arr[$i][$j] as u8,
-            $arr[$i + 1][$j] as u8,
-            $arr[$i + 2][$j] as u8,
-            $arr[$i + 3][$j] as u8,
-            $arr[$i + 4][$j] as u8,
-            $arr[$i + 5][$j] as u8,
-            $arr[$i + 6][$j] as u8,
-            $arr[$i + 7][$j] as u8,
-            $arr[$i + 8][$j] as u8,
-            $arr[$i + 9][$j] as u8,
-            $arr[$i + 10][$j] as u8,
-            $arr[$i + 11][$j] as u8,
-            $arr[$i + 12][$j] as u8,
-            $arr[$i + 13][$j] as u8,
-            $arr[$i + 14][$j] as u8,
-        ]) + u8x16::from_array([
-            $arr[$i][$j] as u8,
-            $arr[$i + 1][$j] as u8,
-            $arr[$i + 2][$j] as u8,
-            $arr[$i + 3][$j] as u8,
-            $arr[$i + 4][$j] as u8,
-            $arr[$i + 5][$j] as u8,
-            $arr[$i + 6][$j] as u8,
-            $arr[$i + 7][$j] as u8,
-            $arr[$i + 8][$j] as u8,
-            $arr[$i + 9][$j] as u8,
-            $arr[$i + 10][$j] as u8,
-            $arr[$i + 11][$j] as u8,
-            $arr[$i + 12][$j] as u8,
-            $arr[$i + 13][$j] as u8,
-            $arr[$i + 14][$j] as u8,
-            $arr[$i + 15][$j] as u8,
-        ]) + u8x16::from_array([
             $arr[$i + 1][$j] as u8,
             $arr[$i + 2][$j] as u8,
             $arr[$i + 3][$j] as u8,
@@ -160,13 +133,14 @@ fn compute_cells<const N: usize, const M: usize>(
             let i_dec = (start_i as isize - 1).rem_euclid(ROWS_) as usize;
             let i_inc = (start_i + CHUNK_SIZE) % ROWS;
 
-            let mut triples1 = chunk_for_simd!(cells_old(start_i)[COLS - 1], (i_dec, i_inc));
-            let mut triples2 = chunk_for_simd!(cells_old(start_i)[0], (i_dec, i_inc));
+            let (_, mut triples1) = get_simd!(cells_old(start_i)[COLS - 1], (i_dec, i_inc));
+            let (mut alives, first_triple) = get_simd!(cells_old(start_i)[0], (i_dec, i_inc));
+            let mut triples2 = first_triple;
 
             for j in 0..(COLS - 1) {
-                let right_triples = chunk_for_simd!(cells_old(start_i)[j + 1], (i_dec, i_inc));
+                let (next_alives, right_triples) =
+                    get_simd!(cells_old(start_i)[j + 1], (i_dec, i_inc));
 
-                let alives = chunk_for_simd!(cells_old(start_i)[j]);
                 let counts = triples1 + triples2 + right_triples - alives;
                 if (j % 2) != 0 {
                     triples2 = right_triples;
@@ -177,10 +151,10 @@ fn compute_cells<const N: usize, const M: usize>(
                 for k in 0..CHUNK_SIZE {
                     cells_chunk[k].set(j, (counts[k] | alives[k] as u8) == 3);
                 }
+                alives = next_alives;
             }
-            let right_triples = chunk_for_simd!(cells_old(start_i)[0], (i_dec, i_inc));
+            let right_triples = first_triple;
 
-            let alives = chunk_for_simd!(cells_old(start_i)[COLS - 1]);
             let counts = triples1 + triples2 + right_triples - alives;
 
             for k in 0..CHUNK_SIZE {
@@ -252,11 +226,9 @@ fn do_step<const N: usize, const M: usize>(
     cells_old: &Box<Field<N, M>>,
     cells_new: &mut Box<Field<N, M>>,
     buffer: &mut Vec<u32>,
-    cells_instant: &time::Instant,
 ) {
     compute_cells(&cells_old, cells_new);
     render_cells(&cells_new, buffer);
-    println!("{}", cells_instant.elapsed().as_millis());
 }
 
 fn main() {
@@ -298,11 +270,12 @@ fn main() {
         && start_instant.elapsed().as_secs() < time_limit
     {
         if flag {
-            do_step(&cells1, &mut cells2, &mut buffer, &cells_instant);
+            do_step(&cells1, &mut cells2, &mut buffer);
         } else {
-            do_step(&cells2, &mut cells1, &mut buffer, &cells_instant);
+            do_step(&cells2, &mut cells1, &mut buffer);
         }
         flag = !flag;
+        println!("{}", cells_instant.elapsed().as_millis());
 
         let elapsed = cells_instant.elapsed().as_micros();
         cells_instant = time::Instant::now();
