@@ -63,10 +63,11 @@ const GREY_SHADES: [u32; 5] = {
 // const COLS_: isize = COLS as isize;
 const ROWS_: isize = ROWS as isize;
 
-const COLS_COMPACT: usize = COLS / 64;
+const COLS_USIZE: usize = COLS / 64;
+const ROWS_USIZE: usize = ROWS / 64;
 const CHUNK_SIZE: usize = 16;
 
-type Field = [BitArray<[usize; COLS_COMPACT]>; ROWS];
+type Field<const N: usize, const M: usize> = [BitArray<[usize; N]>; M];
 
 macro_rules! chunk_for_simd {
     ($arr:ident($i:expr)[$j:expr], ($i_dec:expr, $i_inc:expr)) => {
@@ -145,7 +146,10 @@ macro_rules! chunk_for_simd {
     };
 }
 
-fn compute_cells(cells_old: &Box<Field>, cells_new: &mut Box<Field>) {
+fn compute_cells<const N: usize, const M: usize>(
+    cells_old: &Box<Field<N, M>>,
+    cells_new: &mut Box<Field<N, M>>,
+) {
     cells_new
         .chunks_mut(CHUNK_SIZE)
         .collect::<Vec<_>>()
@@ -185,7 +189,10 @@ fn compute_cells(cells_old: &Box<Field>, cells_new: &mut Box<Field>) {
         });
 }
 
-fn render_cells(cells_new: &Box<Field>, buffer: &mut Vec<u32>) {
+fn render_cells<const N: usize, const M: usize>(
+    cells_new: &Box<Field<N, M>>,
+    buffer: &mut Vec<u32>,
+) {
     match RENDER_MODE {
         RenderMode::OneToOne | RenderMode::Crop => {
             buffer
@@ -241,9 +248,9 @@ fn render_cells(cells_new: &Box<Field>, buffer: &mut Vec<u32>) {
     }
 }
 
-fn do_step(
-    cells_old: &Box<Field>,
-    cells_new: &mut Box<Field>,
+fn do_step<const N: usize, const M: usize>(
+    cells_old: &Box<Field<N, M>>,
+    cells_new: &mut Box<Field<N, M>>,
     buffer: &mut Vec<u32>,
     cells_instant: &time::Instant,
 ) {
@@ -254,8 +261,8 @@ fn do_step(
 
 fn main() {
     let start_instant = time::Instant::now();
-    let mut cells1: Box<Field> = Box::new([bitarr!(0; COLS); ROWS]);
-    let mut cells2: Box<Field> = Box::new([bitarr!(0; COLS); ROWS]);
+    let mut cells1: Box<Field<COLS_USIZE, ROWS>> = Box::new([bitarr!(0; COLS); ROWS]);
+    let mut cells2: Box<Field<COLS_USIZE, ROWS>> = Box::new([bitarr!(0; COLS); ROWS]);
 
     let seed_arr_len = ((COLS * ROWS * 4) as f32).sqrt() as usize;
     let seed_arr: Vec<bool> = (0..(seed_arr_len)).map(|_| random::<f32>() > 0.7).collect();
