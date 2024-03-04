@@ -48,18 +48,6 @@ const fn get_cell_color(val: bool) -> u32 {
     }
 }
 
-#[allow(dead_code)]
-const GREY_SHADES: [u32; 5] = {
-    let mut res = [0; 5];
-    let mut i = 0;
-    while i <= 4 {
-        let grey_value = (i as u32 * 255) / (4) as u32;
-        res[4 - i] = 0xFF000000 | (grey_value << 16) | (grey_value << 8) | grey_value;
-        i += 1;
-    }
-    res
-};
-
 const ROWS_: isize = ROWS as isize;
 const COLS_USIZE: usize = COLS / 64;
 const CHUNK_SIZE: usize = 64;
@@ -242,8 +230,14 @@ fn render_cells<const N: usize, const M: usize>(
                                 count += cells_chunk[i][x * SIDE + j] as usize;
                             }
                         }
-                        buffer_chunk[x] = GREY_SHADES
-                            [(count as f32 / (SIDE * SIDE) as f32 * 4.0).round() as usize];
+                        let val = count as f32 / (SIDE * SIDE) as f32;
+                        buffer_chunk[x] = if val < 0.05 {
+                            0xFFFFFFFF
+                        } else if val < 0.15 {
+                            0x808080
+                        } else {
+                            0x00000000
+                        };
                     }
                 });
         }
