@@ -54,7 +54,7 @@ const CHUNK_SIZE: usize = 64;
 
 type Field<const N: usize, const M: usize> = [BitArray<[usize; N]>; M];
 
-fn get_triple_simd(values: [u8; CHUNK_SIZE + 2]) -> (Simd<u8, CHUNK_SIZE>, Simd<u8, CHUNK_SIZE>) {
+fn get_triple_simd(values: Vec<u8>) -> (Simd<u8, CHUNK_SIZE>, Simd<u8, CHUNK_SIZE>) {
     let alives = u8x64::from_slice(&values[1..=CHUNK_SIZE]);
     (
         alives,
@@ -64,7 +64,7 @@ fn get_triple_simd(values: [u8; CHUNK_SIZE + 2]) -> (Simd<u8, CHUNK_SIZE>, Simd<
 
 macro_rules! get_simd {
     ($arr:ident($i:expr)[$j:expr], ($i_dec:expr, $i_inc:expr)) => {
-        get_triple_simd([
+        get_triple_simd(vec![
             $arr[$i_dec][$j] as u8,
             $arr[$i][$j] as u8,
             $arr[$i + 1][$j] as u8,
