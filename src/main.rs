@@ -17,11 +17,8 @@ enum RenderMode {
 }
 
 const RENDER_MODE: RenderMode = RenderMode::Crop;
-const SIDE: usize = 50;
-const MULTIPLIER: usize = 400;
-// const RENDER_MODE: RenderMode = RenderMode::Crop;
-// const SIDE: usize = 100;
-// const MULTIPLIER: usize = 2000;
+const SIDE: usize = 100;
+const MULTIPLIER: usize = 2000;
 
 const COLS: usize = 64 * MULTIPLIER;
 const ROWS: usize = 36 * MULTIPLIER;
@@ -253,18 +250,29 @@ fn do_step<const N: usize, const M: usize>(
     render_cells(&cells_new, buffer);
 }
 
+const SEED_CHUNK_SIZE: usize = 128;
+const SEED_LEN: usize = (COLS + ROWS) * 2 / SEED_CHUNK_SIZE;
+
 fn main() {
     let start_instant = time::Instant::now();
     let mut cells1: Box<Field<COLS_USIZE, ROWS>> = Box::new([bitarr!(0; COLS); ROWS]);
     let mut cells2: Box<Field<COLS_USIZE, ROWS>> = Box::new([bitarr!(0; COLS); ROWS]);
 
-    let seed_arr_len = ((COLS * ROWS * 4) as f32).sqrt() as usize;
-    let seed_arr: Vec<bool> = (0..(seed_arr_len)).map(|_| random::<f32>() > 0.7).collect();
-    cells2.par_iter_mut().enumerate().for_each(|(i, row)| {
-        for j in 0..COLS {
-            row.set(j, seed_arr[((i * j) ^ j) % seed_arr_len]);
-        }
-    });
+    let seed_arr: Vec<_> = (0..(SEED_LEN))
+        .into_par_iter()
+        .map(|_| random::<u128>())
+        .collect();
+    cells2
+        .par_iter_mut()
+        .enumerate()
+        .for_each(|(i, row)| unsafe {
+            let row_ptr = row.as_mut_bitptr().pointer() as *mut u128;
+            for j in 0..(COLS / SEED_CHUNK_SIZE) {
+                let seed = seed_arr[(i ^ j) % SEED_LEN].to_le_bytes().as_ptr() as *const u128;
+
+                std::ptr::copy_nonoverlapping(seed, row_ptr.add(j), 16);
+            }
+        });
     println!("Init: {}", start_instant.elapsed().as_millis());
 
     let mut buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
@@ -291,6 +299,8 @@ fn main() {
         && !window.is_key_down(Key::Escape)
         && start_instant.elapsed().as_secs() < time_limit
     {
+        window.update_with_buffer(&buffer, WIDTH, HEIGHT).unwrap();
+
         if flag {
             do_step(&cells1, &mut cells2, &mut buffer);
         } else {
@@ -311,8 +321,5 @@ fn main() {
         if elapsed < 16600 {
             thread::sleep(time::Duration::from_micros(16600 - elapsed as u64))
         }
-
-        // We unwrap here as we want this code to exit if it fails. Real applications may want to handle this in a different way
-        window.update_with_buffer(&buffer, WIDTH, HEIGHT).unwrap();
     }
 }
