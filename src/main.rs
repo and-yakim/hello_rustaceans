@@ -270,7 +270,7 @@ fn main() {
             for j in 0..(COLS / SEED_CHUNK_SIZE) {
                 let seed = seed_arr[(i ^ j) % SEED_LEN].to_le_bytes().as_ptr() as *const u128;
 
-                std::ptr::copy_nonoverlapping(seed, row_ptr.add(j), 16);
+                std::ptr::copy(seed, row_ptr.add(j), 1);
             }
         });
     println!("Init: {}", start_instant.elapsed().as_millis());
