@@ -48,8 +48,10 @@ const fn get_cell_color(val: bool) -> u32 {
 const ROWS_: isize = ROWS as isize;
 const COLS_USIZE: usize = COLS / 64;
 const CHUNK_SIZE: usize = 64;
+const SEED_CHUNK_SIZE: usize = 128;
+const SEED_LEN: usize = (COLS + ROWS) * 2 / SEED_CHUNK_SIZE;
 
-type Field<const N: usize, const M: usize> = [BitArray<[usize; N]>; M];
+type Field = [BitArray<[usize; COLS_USIZE]>; ROWS];
 
 fn get_triple_simd(values: Vec<u8>) -> (Simd<u8, CHUNK_SIZE>, Simd<u8, CHUNK_SIZE>) {
     let alives = u8x64::from_slice(&values[1..=CHUNK_SIZE]);
@@ -132,10 +134,7 @@ macro_rules! get_simd {
     };
 }
 
-fn compute_cells<const N: usize, const M: usize>(
-    cells_old: &Box<Field<N, M>>,
-    cells_new: &mut Box<Field<N, M>>,
-) {
+fn compute_cells(cells_old: &Box<Field>, cells_new: &mut Box<Field>) {
     cells_new
         .chunks_mut(CHUNK_SIZE)
         .collect::<Vec<_>>()
@@ -176,10 +175,7 @@ fn compute_cells<const N: usize, const M: usize>(
         });
 }
 
-fn render_cells<const N: usize, const M: usize>(
-    cells_new: &Box<Field<N, M>>,
-    buffer: &mut Vec<u32>,
-) {
+fn render_cells(cells_new: &Box<Field>, buffer: &mut Vec<u32>) {
     match RENDER_MODE {
         RenderMode::OneToOne | RenderMode::Crop => {
             buffer
@@ -241,22 +237,15 @@ fn render_cells<const N: usize, const M: usize>(
     }
 }
 
-fn do_step<const N: usize, const M: usize>(
-    cells_old: &Box<Field<N, M>>,
-    cells_new: &mut Box<Field<N, M>>,
-    buffer: &mut Vec<u32>,
-) {
+fn do_step(cells_old: &Box<Field>, cells_new: &mut Box<Field>, buffer: &mut Vec<u32>) {
     compute_cells(&cells_old, cells_new);
     render_cells(&cells_new, buffer);
 }
 
-const SEED_CHUNK_SIZE: usize = 128;
-const SEED_LEN: usize = (COLS + ROWS) * 2 / SEED_CHUNK_SIZE;
-
 fn main() {
     let start_instant = time::Instant::now();
-    let mut cells1: Box<Field<COLS_USIZE, ROWS>> = Box::new([bitarr!(0; COLS); ROWS]);
-    let mut cells2: Box<Field<COLS_USIZE, ROWS>> = Box::new([bitarr!(0; COLS); ROWS]);
+    let mut cells1: Box<Field> = Box::new([bitarr!(0; COLS); ROWS]);
+    let mut cells2: Box<Field> = Box::new([bitarr!(0; COLS); ROWS]);
 
     let seed_arr: Vec<_> = (0..(SEED_LEN))
         .into_par_iter()
@@ -269,7 +258,6 @@ fn main() {
             let row_ptr = row.as_mut_bitptr().pointer() as *mut u128;
             for j in 0..(COLS / SEED_CHUNK_SIZE) {
                 let seed = seed_arr[(i ^ j) % SEED_LEN].to_le_bytes().as_ptr() as *const u128;
-
                 std::ptr::copy(seed, row_ptr.add(j), 1);
             }
         });
