@@ -7,6 +7,7 @@ use bitvec::prelude::*;
 use minifb::{Key, Window, WindowOptions};
 use rand::random;
 use rayon::prelude::*;
+use std::simd::{u64x64, u8x64, Simd};
 use std::{thread, time};
 
 #[allow(dead_code)]
@@ -61,7 +62,6 @@ fn get_triple_simd(values: Vec<u8>) -> (Simd<u8, CHUNK_SIZE>, Simd<u8, CHUNK_SIZ
         u8x64::from_slice(&values[2..]) + alives + u8x64::from_slice(&values[..CHUNK_SIZE]),
     )
 }
-
 
 fn compute_cells(cells_old: &Box<Field>, cells_new: &mut Box<Field>) {
     cells_new
