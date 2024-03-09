@@ -7,37 +7,39 @@ use bitvec::prelude::*;
 use minifb::{Key, Window, WindowOptions};
 use rand::random;
 use rayon::prelude::*;
-use std::simd::{u64x64, u8x64, Simd};
+use std::simd::{u8x64, Simd};
 use std::{thread, time};
 
 #[allow(dead_code)]
 enum RenderMode {
     OneToOne,
-    Enlarge,
-    Reduce,
+    Enlarge { scale: usize },
+    Reduce { scale: usize },
     Crop,
 }
 
 const RENDER_MODE: RenderMode = RenderMode::Crop;
-const SIDE: usize = 100;
-const MULTIPLIER: usize = 2000;
+const RATIO: (usize, usize, usize) = (16, 9, 80);
+// const RATIO: (usize, usize, usize) = (43, 18, 80); // 1440p
 
-const COLS: usize = 64 * MULTIPLIER;
-const ROWS: usize = 36 * MULTIPLIER;
+const CHUNK_SIZE: usize = 64;
+const MULTIPLIER: usize = 131;
 
-// Aspects ratio 43:18
-// const COLS: usize = 3440;
-// const ROWS: usize = 1440;
+const COLS: usize = CHUNK_SIZE * RATIO.0 * MULTIPLIER;
+const ROWS: usize = CHUNK_SIZE * RATIO.1 * MULTIPLIER;
+const CELLS_TOTAL: usize = COLS * ROWS;
 
-const fn scale_by_mode(val: usize) -> usize {
+const fn scale_by_mode(val: usize, def: usize) -> usize {
     match RENDER_MODE {
         RenderMode::OneToOne => val,
-        RenderMode::Enlarge => val * SIDE,
-        RenderMode::Reduce | RenderMode::Crop => val / SIDE,
+        RenderMode::Enlarge { scale } => val * scale,
+        RenderMode::Reduce { scale } => val / scale,
+        RenderMode::Crop => def,
     }
 }
-const WIDTH: usize = scale_by_mode(COLS);
-const HEIGHT: usize = scale_by_mode(ROWS);
+const DEFAULT_RES: (usize, usize) = (RATIO.0 * RATIO.2, RATIO.1 * RATIO.2);
+const WIDTH: usize = scale_by_mode(COLS, DEFAULT_RES.0);
+const HEIGHT: usize = scale_by_mode(ROWS, DEFAULT_RES.1);
 
 #[allow(dead_code)]
 const fn get_cell_color(val: bool) -> u32 {
@@ -49,9 +51,9 @@ const fn get_cell_color(val: bool) -> u32 {
 
 const ROWS_: isize = ROWS as isize;
 const COLS_USIZE: usize = COLS / 64;
-const CHUNK_SIZE: usize = 64;
+
 const SEED_CHUNK_SIZE: usize = 128;
-const SEED_LEN: usize = (COLS + ROWS) * 2 / SEED_CHUNK_SIZE;
+const SEED_LEN: usize = (COLS + ROWS) * CHUNK_SIZE / SEED_CHUNK_SIZE;
 
 type Field = [BitArray<[usize; COLS_USIZE]>; ROWS];
 
@@ -127,30 +129,30 @@ fn render_cells(cells_new: &Box<Field>, buffer: &mut Vec<u32>) {
                     *pixel = get_cell_color(cells_new[index / WIDTH][index % WIDTH]);
                 });
         }
-        RenderMode::Enlarge => {
+        RenderMode::Enlarge { scale } => {
             cells_new
                 .par_iter()
                 .zip(
                     buffer
-                        .chunks_mut(WIDTH * SIDE)
+                        .chunks_mut(WIDTH * scale)
                         .collect::<Vec<&mut [u32]>>()
                         .par_iter_mut(),
                 )
                 .for_each(|(cells_row, buffer_chunk)| {
-                    for i in 0..SIDE {
-                        for j in 0..SIDE {
+                    for i in 0..scale {
+                        for j in 0..scale {
                             for x in 0..COLS {
-                                buffer_chunk[i * WIDTH + x * SIDE + j] =
+                                buffer_chunk[i * WIDTH + x * scale + j] =
                                     get_cell_color(cells_row[x]);
                             }
                         }
                     }
                 });
         }
-        RenderMode::Reduce => {
+        RenderMode::Reduce { scale } => {
             cells_new
                 .par_iter()
-                .chunks(SIDE)
+                .chunks(scale)
                 .zip(
                     buffer
                         .chunks_mut(WIDTH)
@@ -160,12 +162,12 @@ fn render_cells(cells_new: &Box<Field>, buffer: &mut Vec<u32>) {
                 .for_each(|(cells_chunk, buffer_chunk)| {
                     for x in 0..WIDTH {
                         let mut count = 0;
-                        for i in 0..SIDE {
-                            for j in 0..SIDE {
-                                count += cells_chunk[i][x * SIDE + j] as usize;
+                        for i in 0..scale {
+                            for j in 0..scale {
+                                count += cells_chunk[i][x * scale + j] as usize;
                             }
                         }
-                        let val = count as f32 / (SIDE * SIDE) as f32;
+                        let val = count as f32 / (scale * scale) as f32;
                         buffer_chunk[x] = if val < 0.05 {
                             0xFFFFFFFF
                         } else if val < 0.15 {
@@ -185,6 +187,11 @@ fn do_step(cells_old: &Box<Field>, cells_new: &mut Box<Field>, buffer: &mut Vec<
 }
 
 fn main() {
+    let title = if CELLS_TOTAL < 10_usize.pow(9) {
+        |fps: f64| format!("CELLS: {COLS}x{ROWS} FPS: {fps:.1}")
+    } else {
+        |fps: f64| format!("CELLS: {CELLS_TOTAL:.1e} FPS: {fps:.1}")
+    };
     let start_instant = time::Instant::now();
     let mut cells1: Box<Field> = Box::new([bitarr!(0; COLS); ROWS]);
     let mut cells2: Box<Field> = Box::new([bitarr!(0; COLS); ROWS]);
@@ -199,11 +206,11 @@ fn main() {
         .for_each(|(i, row)| unsafe {
             let row_ptr = row.as_mut_bitptr().pointer() as *mut u128;
             for j in 0..(COLS / SEED_CHUNK_SIZE) {
-                let seed = seed_arr[(i ^ j) % SEED_LEN].to_le_bytes().as_ptr() as *const u128;
+                let seed = seed_arr[(i ^ j * j) % SEED_LEN].to_le_bytes().as_ptr() as *const u128;
                 std::ptr::copy(seed, row_ptr.add(j), 1);
             }
         });
-    println!("Init: {}", start_instant.elapsed().as_millis());
+    println!("Init:  {} ms", start_instant.elapsed().as_millis());
 
     let mut buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
 
@@ -216,6 +223,7 @@ fn main() {
     .unwrap_or_else(|e| {
         panic!("{}", e);
     });
+    window.set_title(title(0.).as_str());
 
     // Limit to max ~60 fps update rate
     window.limit_update_rate(Some(time::Duration::from_micros(16600)));
@@ -237,15 +245,14 @@ fn main() {
             do_step(&cells2, &mut cells1, &mut buffer);
         }
         flag = !flag;
-        println!("{}", cells_instant.elapsed().as_millis());
 
         let elapsed = cells_instant.elapsed().as_micros();
         cells_instant = time::Instant::now();
         if fps_instant.elapsed().as_millis() > 200 {
             fps_instant = time::Instant::now();
-            let fps = 1000000.0 / elapsed as f64;
-            window.set_title(format!("CELLS: {COLS}x{ROWS} FPS: {fps:.1}").as_str());
-            println!("FPS: {:.1}", fps);
+            let fps = 1000_000. / elapsed as f64;
+            window.set_title(title(fps).as_str());
+            println!("Frame: {} ms | {fps:.1} fps", elapsed / 1000);
         }
         // same ~60 fps limit for cells computing
         if elapsed < 16600 {
