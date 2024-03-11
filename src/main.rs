@@ -7,7 +7,7 @@ use bitvec::prelude::*;
 use minifb::{Key, Window, WindowOptions};
 use rand::random;
 use rayon::prelude::*;
-use std::simd::{u8x64, Simd};
+use std::simd::{u64x64, Simd};
 use std::{thread, time};
 
 #[allow(dead_code)]
@@ -22,11 +22,13 @@ const RENDER_MODE: RenderMode = RenderMode::Crop;
 const RATIO: (usize, usize, usize) = (16, 9, 80);
 // const RATIO: (usize, usize, usize) = (43, 18, 80); // 1440p
 
-const CHUNK_SIZE: usize = 64;
-const MULTIPLIER: usize = 131;
+const CHUNK: usize = 64;
+const SUBCHUNK: usize = 16;
+const CELLS_CHUNK: usize = CHUNK * SUBCHUNK;
+const MULTIPLIER: usize = 5;
 
-const COLS: usize = CHUNK_SIZE * RATIO.0 * MULTIPLIER;
-const ROWS: usize = CHUNK_SIZE * RATIO.1 * MULTIPLIER;
+const COLS: usize = CELLS_CHUNK * RATIO.0 * MULTIPLIER;
+const ROWS: usize = CELLS_CHUNK * RATIO.1 * MULTIPLIER;
 const CELLS_TOTAL: usize = COLS * ROWS;
 
 const fn scale_by_mode(val: usize, def: usize) -> usize {
@@ -53,33 +55,28 @@ const ROWS_: isize = ROWS as isize;
 const COLS_USIZE: usize = COLS / 64;
 
 const SEED_CHUNK_SIZE: usize = 128;
-const SEED_LEN: usize = (COLS + ROWS) * CHUNK_SIZE / SEED_CHUNK_SIZE;
+const SEED_LEN: usize = (COLS + ROWS) * CHUNK / SEED_CHUNK_SIZE;
 
 type Field = [BitArray<[usize; COLS_USIZE]>; ROWS];
 
-fn get_triple_simd(
-    values: Vec<u8>,
-    dec_u8: u8,
-    inc_u8: u8,
-) -> (Simd<u8, CHUNK_SIZE>, Simd<u8, CHUNK_SIZE>) {
-    let alives = u8x64::from_slice(&values[..]);
-
-    let (mut dec, mut inc) = (alives, alives);
-    (dec[CHUNK_SIZE - 1], inc[CHUNK_SIZE - 1]) = (dec_u8, inc_u8);
-
-    (alives, dec + alives + inc)
+fn get_triple_simd(values: Vec<u64>) -> (Simd<u64, CHUNK>, Simd<u64, CHUNK>) {
+    let alives = u64x64::from_slice(&values[1..=CHUNK]);
+    (
+        alives,
+        u64x64::from_slice(&values[..CHUNK]) + alives + u64x64::from_slice(&values[2..]),
+    )
 }
 
 fn compute_cells(cells_old: &Box<Field>, cells_new: &mut Box<Field>) {
     cells_new
-        .chunks_mut(CHUNK_SIZE)
+        .chunks_mut(CHUNK)
         .collect::<Vec<_>>()
         .par_iter_mut()
         .enumerate()
         .for_each(|(i_chunk, cells_chunk)| {
-            let start_i = i_chunk * CHUNK_SIZE;
+            let start_i = i_chunk * CHUNK;
             let i_dec = (start_i as isize - 1).rem_euclid(ROWS_) as usize;
-            let i_inc = (start_i + CHUNK_SIZE) % ROWS;
+            let i_inc = (start_i + CHUNK) % ROWS;
 
             let (_, mut triples1) = get_simd!(cells_old, start_i, COLS - 1, i_dec, i_inc);
             let (mut alives, first_triple) = get_simd!(cells_old, start_i, 0, i_dec, i_inc);
@@ -96,26 +93,20 @@ fn compute_cells(cells_old: &Box<Field>, cells_new: &mut Box<Field>) {
                     triples1 = right_triples;
                 };
 
-                for k in 0..(CHUNK_SIZE - 1) {
-                    cells_chunk[k].set(j, (counts[k] | alives[k] as u8) == 3);
+                for k in 0..(CHUNK - 1) {
+                    cells_chunk[k].set(j, (counts[k] | alives[k]) == 3);
                 }
-                cells_chunk[CHUNK_SIZE - 1].set(
-                    j,
-                    (counts[CHUNK_SIZE - 1] | alives[CHUNK_SIZE - 1] as u8) == 3,
-                );
+                cells_chunk[CHUNK - 1].set(j, (counts[CHUNK - 1] | alives[CHUNK - 1]) == 3);
                 alives = next_alives;
             }
             let right_triples = first_triple;
 
             let counts = triples1 + triples2 + right_triples - alives;
 
-            for k in 0..(CHUNK_SIZE - 1) {
-                cells_chunk[k].set(COLS - 1, (counts[k] | alives[k] as u8) == 3);
+            for k in 0..(CHUNK - 1) {
+                cells_chunk[k].set(COLS - 1, (counts[k] | alives[k]) == 3);
             }
-            cells_chunk[CHUNK_SIZE - 1].set(
-                COLS - 1,
-                (counts[CHUNK_SIZE - 1] | alives[CHUNK_SIZE - 1] as u8) == 3,
-            );
+            cells_chunk[CHUNK - 1].set(COLS - 1, (counts[CHUNK - 1] | alives[CHUNK - 1]) == 3);
         });
 }
 
