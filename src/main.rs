@@ -124,7 +124,7 @@ fn compute_cells(cells_old: &Box<Field>, cells_new: &mut Box<Field>) {
                 let (next_alives, right_triples) =
                     get_simd_by_bits(cells_old, start_i, j + 1, i_dec, i_inc);
 
-                let counts = triples1 + triples2 + right_triples - alives;
+                let res = (triples1 + triples2 + right_triples - alives) | alives;
                 if (j % 2) != 0 {
                     triples2 = right_triples;
                 } else {
@@ -132,16 +132,16 @@ fn compute_cells(cells_old: &Box<Field>, cells_new: &mut Box<Field>) {
                 };
 
                 for k in 0..CHUNK {
-                    cells_chunk.set(j * CHUNK + k, (counts[k] | alives[k]) == 3);
+                    cells_chunk.set(j * CHUNK + k, res[k] == 3);
                 }
                 alives = next_alives;
             }
             let right_triples = first_triple;
 
-            let counts = triples1 + triples2 + right_triples - alives;
+            let res = (triples1 + triples2 + right_triples - alives) | alives;
 
             for k in 0..CHUNK {
-                cells_chunk.set((COLS - 1) * CHUNK + k, (counts[k] | alives[k]) == 3);
+                cells_chunk.set((COLS - 1) * CHUNK + k, res[k] == 3);
             }
         });
 }
