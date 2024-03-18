@@ -7,7 +7,7 @@ use bitvec::prelude::*;
 use minifb::{Key, Window, WindowOptions};
 use rand::random;
 use rayon::prelude::*;
-use std::simd::{u64x64, Simd};
+use std::simd::{u8x64, Simd};
 use std::{thread, time};
 
 #[allow(dead_code)]
@@ -19,10 +19,11 @@ enum RenderMode {
 }
 
 const RENDER_MODE: RenderMode = RenderMode::Crop;
-const RATIO: (usize, usize, usize) = (16, 9, 80);
-// const RATIO: (usize, usize, usize) = (43, 18, 80); // 1440p
 
 const CHUNK: usize = 64;
+const RATIO: (usize, usize, usize) = (16, 9, CHUNK);
+// const RATIO: (usize, usize, usize) = (43, 18, 80); // 1440p
+
 const SUBCHUNK: usize = 16;
 const CELLS_CHUNK: usize = CHUNK * SUBCHUNK;
 const MULTIPLIER: usize = 5;
@@ -52,39 +53,76 @@ const fn get_cell_color(val: bool) -> u32 {
 }
 
 const ROWS_: isize = ROWS as isize;
-const COLS_USIZE: usize = COLS / 64;
 
 const SEED_CHUNK_SIZE: usize = 128;
 const SEED_LEN: usize = (COLS + ROWS) * CHUNK / SEED_CHUNK_SIZE;
 
-type Field = [BitArray<[usize; COLS_USIZE]>; ROWS];
+type Field = [BitArray<[usize; COLS]>; ROWS / CHUNK];
 
-fn get_triple_simd(values: Vec<u64>) -> (Simd<u64, CHUNK>, Simd<u64, CHUNK>) {
-    let alives = u64x64::from_slice(&values[1..=CHUNK]);
+fn get_triple_simd(values: Vec<u8>) -> (Simd<u8, CHUNK>, Simd<u8, CHUNK>) {
+    let alives = u8x64::from_slice(&values[1..=CHUNK]);
     (
         alives,
-        u64x64::from_slice(&values[..CHUNK]) + alives + u64x64::from_slice(&values[2..]),
+        u8x64::from_slice(&values[..CHUNK]) + alives + u8x64::from_slice(&values[2..]),
     )
+}
+
+// fn slice16_to_u8(arr: BitArray<[usize; COLS]>, j: usize) -> u8 {
+//     arr[j..(j + SUBCHUNK)]
+//         .into_iter()
+//         .flat_map(|alive| [false, false, false, *alive])
+//         .collect::<BitVec<u8, Lsb0>>()
+//         .as_raw_slice()[0]
+// }
+
+// fn u8_to_res16(val: u8) -> Vec<bool> {
+//     val.view_bits::<Lsb0>()
+//         .chunks(4)
+//         .map(|arr| {
+//             let t = arr
+//                 .into_iter()
+//                 .collect::<BitVec<u8, Lsb0>>()
+//                 .as_raw_slice()[0];
+//             t > 3
+//         })
+//         .collect::<Vec<_>>()
+// }
+
+fn get_simd_by_bits(
+    cells_old: &Box<Field>,
+    start_i: usize,
+    j: usize,
+    i_dec: usize,
+    i_inc: usize,
+) -> (Simd<u8, CHUNK>, Simd<u8, CHUNK>) {
+    let mut values = Vec::with_capacity(CHUNK + 2);
+    values.push(cells_old[i_dec][(j + 1) * CHUNK - 1] as u8);
+    values.extend(
+        cells_old[start_i][(j * CHUNK)..((j + 1) * CHUNK)]
+            .into_iter()
+            .map(|v| *v as u8),
+    );
+    values.push(cells_old[i_inc][j * CHUNK] as u8);
+
+    get_triple_simd(values)
 }
 
 fn compute_cells(cells_old: &Box<Field>, cells_new: &mut Box<Field>) {
     cells_new
-        .chunks_mut(CHUNK)
-        .collect::<Vec<_>>()
         .par_iter_mut()
         .enumerate()
         .for_each(|(i_chunk, cells_chunk)| {
-            let start_i = i_chunk * CHUNK;
-            let i_dec = (start_i as isize - 1).rem_euclid(ROWS_) as usize;
-            let i_inc = (start_i + CHUNK) % ROWS;
+            let start_i = i_chunk;
+            let i_dec = (start_i as isize - 1).rem_euclid(ROWS_ / CHUNK as isize) as usize;
+            let i_inc = (start_i + 1) % (ROWS / CHUNK);
 
-            let (_, mut triples1) = get_simd!(cells_old, start_i, COLS - 1, i_dec, i_inc);
-            let (mut alives, first_triple) = get_simd!(cells_old, start_i, 0, i_dec, i_inc);
+            let (_, mut triples1) = get_simd_by_bits(cells_old, start_i, COLS - 1, i_dec, i_inc);
+            let (mut alives, first_triple) = get_simd_by_bits(cells_old, start_i, 0, i_dec, i_inc);
             let mut triples2 = first_triple;
 
             for j in 0..(COLS - 1) {
                 let (next_alives, right_triples) =
-                    get_simd!(cells_old, start_i, j + 1, i_dec, i_inc);
+                    get_simd_by_bits(cells_old, start_i, j + 1, i_dec, i_inc);
 
                 let counts = triples1 + triples2 + right_triples - alives;
                 if (j % 2) != 0 {
@@ -93,20 +131,18 @@ fn compute_cells(cells_old: &Box<Field>, cells_new: &mut Box<Field>) {
                     triples1 = right_triples;
                 };
 
-                for k in 0..(CHUNK - 1) {
-                    cells_chunk[k].set(j, (counts[k] | alives[k]) == 3);
+                for k in 0..CHUNK {
+                    cells_chunk.set(j * CHUNK + k, (counts[k] | alives[k]) == 3);
                 }
-                cells_chunk[CHUNK - 1].set(j, (counts[CHUNK - 1] | alives[CHUNK - 1]) == 3);
                 alives = next_alives;
             }
             let right_triples = first_triple;
 
             let counts = triples1 + triples2 + right_triples - alives;
 
-            for k in 0..(CHUNK - 1) {
-                cells_chunk[k].set(COLS - 1, (counts[k] | alives[k]) == 3);
+            for k in 0..CHUNK {
+                cells_chunk.set((COLS - 1) * CHUNK + k, (counts[k] | alives[k]) == 3);
             }
-            cells_chunk[CHUNK - 1].set(COLS - 1, (counts[CHUNK - 1] | alives[CHUNK - 1]) == 3);
         });
 }
 
@@ -114,60 +150,65 @@ fn render_cells(cells_new: &Box<Field>, buffer: &mut Vec<u32>) {
     match RENDER_MODE {
         RenderMode::OneToOne | RenderMode::Crop => {
             buffer
-                .par_iter_mut()
-                .enumerate()
-                .for_each(|(index, pixel)| {
-                    *pixel = get_cell_color(cells_new[index / WIDTH][index % WIDTH]);
-                });
-        }
-        RenderMode::Enlarge { scale } => {
-            cells_new
-                .par_iter()
-                .zip(
-                    buffer
-                        .chunks_mut(WIDTH * scale)
-                        .collect::<Vec<&mut [u32]>>()
-                        .par_iter_mut(),
-                )
-                .for_each(|(cells_row, buffer_chunk)| {
-                    for i in 0..scale {
-                        for j in 0..scale {
-                            for x in 0..COLS {
-                                buffer_chunk[i * WIDTH + x * scale + j] =
-                                    get_cell_color(cells_row[x]);
-                            }
+                .par_chunks_mut(WIDTH * CHUNK)
+                .zip(cells_new.par_iter())
+                .for_each(|(buffer_chunk, cells_chunk)| {
+                    for i in 0..CHUNK {
+                        for j in 0..WIDTH {
+                            buffer_chunk[i * WIDTH + j] =
+                                get_cell_color(cells_chunk[j * CHUNK + i]);
                         }
                     }
                 });
         }
-        RenderMode::Reduce { scale } => {
-            cells_new
-                .par_iter()
-                .chunks(scale)
-                .zip(
-                    buffer
-                        .chunks_mut(WIDTH)
-                        .collect::<Vec<&mut [u32]>>()
-                        .par_iter_mut(),
-                )
-                .for_each(|(cells_chunk, buffer_chunk)| {
-                    for x in 0..WIDTH {
-                        let mut count = 0;
-                        for i in 0..scale {
-                            for j in 0..scale {
-                                count += cells_chunk[i][x * scale + j] as usize;
-                            }
-                        }
-                        let val = count as f32 / (scale * scale) as f32;
-                        buffer_chunk[x] = if val < 0.05 {
-                            0xFFFFFFFF
-                        } else if val < 0.15 {
-                            0x808080
-                        } else {
-                            0x00000000
-                        };
-                    }
-                });
+        RenderMode::Enlarge { .. } => { /*
+             cells_new
+                 .par_iter()
+                 .zip(
+                     buffer
+                         .chunks_mut(WIDTH * scale)
+                         .collect::<Vec<&mut [u32]>>()
+                         .par_iter_mut(),
+                 )
+                 .for_each(|(cells_row, buffer_chunk)| {
+                     for i in 0..scale {
+                         for j in 0..scale {
+                             for x in 0..COLS {
+                                 buffer_chunk[i * WIDTH + x * scale + j] =
+                                     get_cell_color(cells_row[x]);
+                             }
+                         }
+                     }
+                 }); */
+        }
+        RenderMode::Reduce { .. } => { /*
+             cells_new
+                 .par_iter()
+                 .chunks(scale)
+                 .zip(
+                     buffer
+                         .chunks_mut(WIDTH)
+                         .collect::<Vec<&mut [u32]>>()
+                         .par_iter_mut(),
+                 )
+                 .for_each(|(cells_chunk, buffer_chunk)| {
+                     for x in 0..WIDTH {
+                         let mut count = 0;
+                         for i in 0..scale {
+                             for j in 0..scale {
+                                 count += cells_chunk[i][x * scale + j] as usize;
+                             }
+                         }
+                         let val = count as f32 / (scale * scale) as f32;
+                         buffer_chunk[x] = if val < 0.05 {
+                             0xFFFFFFFF
+                         } else if val < 0.15 {
+                             0x808080
+                         } else {
+                             0x00000000
+                         };
+                     }
+                 }); */
         }
     }
 }
@@ -184,8 +225,8 @@ fn main() {
         |fps: f64| format!("CELLS: {CELLS_TOTAL:.1e} FPS: {fps:.1}")
     };
     let start_instant = time::Instant::now();
-    let mut cells1: Box<Field> = Box::new([bitarr!(0; COLS); ROWS]);
-    let mut cells2: Box<Field> = Box::new([bitarr!(0; COLS); ROWS]);
+    let mut cells1: Box<Field> = Box::new([bitarr!(0; COLS * CHUNK); ROWS / CHUNK]);
+    let mut cells2: Box<Field> = Box::new([bitarr!(0; COLS * CHUNK); ROWS / CHUNK]);
 
     let seed_arr: Vec<_> = (0..(SEED_LEN))
         .into_par_iter()
@@ -196,7 +237,7 @@ fn main() {
         .enumerate()
         .for_each(|(i, row)| unsafe {
             let row_ptr = row.as_mut_bitptr().pointer() as *mut u128;
-            for j in 0..(COLS / SEED_CHUNK_SIZE) {
+            for j in 0..(COLS * CHUNK / SEED_CHUNK_SIZE) {
                 let seed = seed_arr[(i ^ j * j) % SEED_LEN].to_le_bytes().as_ptr() as *const u128;
                 std::ptr::copy(seed, row_ptr.add(j), 1);
             }
