@@ -21,7 +21,7 @@ enum RenderMode {
 const RENDER_MODE: RenderMode = RenderMode::Crop;
 
 const CHUNK: usize = 64;
-const RATIO: (usize, usize, usize) = (16, 9, CHUNK);
+const RATIO: (usize, usize, usize) = (16, 9, 80);
 // const RATIO: (usize, usize, usize) = (43, 18, 80); // 1440p
 
 const SUBCHUNK: usize = 16;
@@ -149,17 +149,11 @@ fn compute_cells(cells_old: &Box<Field>, cells_new: &mut Box<Field>) {
 fn render_cells(cells_new: &Box<Field>, buffer: &mut Vec<u32>) {
     match RENDER_MODE {
         RenderMode::OneToOne | RenderMode::Crop => {
-            buffer
-                .par_chunks_mut(WIDTH * CHUNK)
-                .zip(cells_new.par_iter())
-                .for_each(|(buffer_chunk, cells_chunk)| {
-                    for i in 0..CHUNK {
-                        for j in 0..WIDTH {
-                            buffer_chunk[i * WIDTH + j] =
-                                get_cell_color(cells_chunk[j * CHUNK + i]);
-                        }
-                    }
-                });
+            buffer.par_iter_mut().enumerate().for_each(|(i, pixel)| {
+                let i_ = i / WIDTH;
+                let j_ = i % WIDTH;
+                *pixel = get_cell_color(cells_new[i_ / CHUNK][j_ * CHUNK + i_ % CHUNK]);
+            });
         }
         RenderMode::Enlarge { .. } => { /*
              cells_new
