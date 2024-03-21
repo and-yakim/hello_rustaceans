@@ -1,8 +1,6 @@
 #![feature(portable_simd)]
 extern crate minifb;
 
-mod long_macro;
-
 use bitvec::prelude::*;
 use minifb::{Key, Window, WindowOptions};
 use rand::random;
