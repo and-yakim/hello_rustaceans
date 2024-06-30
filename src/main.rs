@@ -11,9 +11,12 @@ struct Molecule {
     position: Vector3<f32>,
 }
 
+const MASS: f32 = 1.0;
+const RADIUS: f32 = 0.1;
+
 impl Molecule {
     fn new(window: &mut Window, position: Vector3<f32>, velocity: Vector3<f32>) -> Self {
-        let mut sphere = window.add_sphere(0.1); // Radius of the sphere
+        let mut sphere = window.add_sphere(RADIUS);
         sphere.set_color(0.0, 1.0, 0.0);
         sphere.append_translation(&Translation3::from(position));
 
@@ -29,6 +32,24 @@ impl Molecule {
         self.sphere
             .set_local_translation(Translation3::from(self.position));
     }
+}
+
+fn lennard_jones_force(r: Vector3<f32>, epsilon: f32, sigma: f32) -> Vector3<f32> {
+    let r_norm = r.norm();
+    let lj_scalar = 24.0 * epsilon * (2.0 * (sigma / r_norm).powi(12) - (sigma / r_norm).powi(6))
+        / r_norm.powi(2);
+    r * lj_scalar
+}
+
+fn update_velocities(m1: &mut Molecule, m2: &mut Molecule, dt: f32, epsilon: f32, sigma: f32) {
+    let r = m2.position - m1.position;
+    let force = lennard_jones_force(r, epsilon, sigma);
+
+    let acceleration1 = force / MASS;
+    let acceleration2 = -force / MASS;
+
+    m1.velocity += acceleration1 * dt;
+    m2.velocity += acceleration2 * dt;
 }
 
 fn main() {
