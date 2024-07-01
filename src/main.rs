@@ -5,6 +5,8 @@ use kiss3d::nalgebra::{Translation3, Vector3};
 use kiss3d::scene::SceneNode;
 use kiss3d::window::Window;
 
+use std::time;
+
 struct Molecule {
     sphere: SceneNode,
     velocity: Vector3<f32>,
@@ -13,6 +15,9 @@ struct Molecule {
 
 const MASS: f32 = 1.0;
 const RADIUS: f32 = 0.1;
+const EPSILON: f32 = 0.2;
+const SIGMA: f32 = 0.1;
+const N: usize = 2;
 
 impl Molecule {
     fn new(window: &mut Window, position: Vector3<f32>, velocity: Vector3<f32>) -> Self {
@@ -41,44 +46,49 @@ fn lennard_jones_force(r: Vector3<f32>, epsilon: f32, sigma: f32) -> Vector3<f32
     r * lj_scalar
 }
 
-fn update_velocities(m1: &mut Molecule, m2: &mut Molecule, dt: f32, epsilon: f32, sigma: f32) {
-    let r = m2.position - m1.position;
-    let force = lennard_jones_force(r, epsilon, sigma);
+fn update_velocities(molecules: &mut [Molecule], i: usize, j: usize, dt: f32) {
+    let r = molecules[j].position - molecules[i].position;
+    let force = lennard_jones_force(r, EPSILON, SIGMA);
 
     let acceleration1 = force / MASS;
     let acceleration2 = -force / MASS;
 
-    m1.velocity += acceleration1 * dt;
-    m2.velocity += acceleration2 * dt;
+    molecules[i].velocity += acceleration1 * dt;
+    molecules[j].velocity += acceleration2 * dt;
 }
 
 fn main() {
-    let mut window = Window::new("Kiss3d: Molecules");
+    let mut window = Window::new("Molecules");
     window.set_light(Light::StickToCamera);
+
+    let start_instant = time::Instant::now();
+    let time_limit = 5;
 
     let dt = 0.01; // Time step
 
-    // Create molecules with initial positions and velocities
     let mut molecules = vec![
         Molecule::new(
             &mut window,
-            Vector3::new(-1.0, 0.0, 0.0),
+            Vector3::new(-0.3, 0.0, 0.0),
             Vector3::new(0.1, 0.0, 0.0),
         ),
         Molecule::new(
             &mut window,
-            Vector3::new(1.0, 0.0, 0.0),
-            Vector3::new(-0.1, 0.0, 0.0),
+            Vector3::new(0.3, 0.05, 0.1),
+            Vector3::new(-0.2, 0.0, 0.0),
         ),
-        // Add more molecules as needed
     ];
 
     while window.render() {
-        for molecule in &mut molecules {
-            molecule.update_position(dt);
-
-            // Here you can add the logic for interactions between molecules
-            // e.g., calculate forces, update velocities, handle collisions, etc.
+        if start_instant.elapsed().as_secs() > time_limit {
+            break;
+        };
+        for i in 0..(N - 1) {
+            for j in (i + 1)..N {
+                update_velocities(&mut molecules, i, j, dt);
+            }
+            molecules[i].update_position(dt);
         }
+        molecules[N - 1].update_position(dt);
     }
 }
