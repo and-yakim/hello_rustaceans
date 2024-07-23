@@ -5,6 +5,8 @@ use kiss3d::nalgebra::{Point3, Translation3, Vector3};
 use kiss3d::scene::SceneNode;
 use kiss3d::window::Window;
 
+use rand::prelude::*;
+use std::f32::consts::PI;
 use std::time;
 
 struct Molecule {
@@ -20,7 +22,9 @@ const SIGMA: f32 = 0.1;
 const DT: f32 = 0.01;
 const BOUNDRY_RADIUS: f32 = 1.0;
 const MIN_TEMP: f32 = 0.0;
-const MAX_TEMP: f32 = 0.1;
+const MAX_VEL: f32 = 0.3;
+const MAX_TEMP: f32 = MAX_VEL * MAX_VEL;
+const N: usize = 20;
 
 impl Molecule {
     fn new(window: &mut Window, position: Vector3<f32>, velocity: Vector3<f32>) -> Self {
@@ -80,10 +84,42 @@ fn lennard_jones_force(r: Vector3<f32>, epsilon: f32, sigma: f32) -> Vector3<f32
 
 fn update_velocities(molecules: &mut [Molecule], i: usize, j: usize) {
     let r = molecules[j].position - molecules[i].position;
-    let force = lennard_jones_force(r, EPSILON, SIGMA);
+    if r.norm() <= 2.5 * RADIUS {
+        let force = lennard_jones_force(r, EPSILON, SIGMA);
 
-    molecules[i].velocity += force * DT;
-    molecules[j].velocity += -force * DT;
+        molecules[i].velocity += force * DT;
+        molecules[j].velocity += -force * DT;
+    }
+}
+
+fn random_vector3_in_sphere(boundary_radius: f32) -> Vector3<f32> {
+    let mut rng = rand::thread_rng();
+
+    // Generate a random radius r within the sphere
+    let r = rng.gen_range(0.0..boundary_radius).cbrt() * boundary_radius;
+
+    // Generate random angles theta and phi
+    let theta = rng.gen_range(0.0..2.0 * PI);
+    let phi = rng.gen_range(0.0..PI);
+
+    // Convert spherical coordinates to Cartesian coordinates
+    let x = r * phi.sin() * theta.cos();
+    let y = r * phi.sin() * theta.sin();
+    let z = r * phi.cos();
+
+    Vector3::new(x, y, z)
+}
+
+fn random_position_with_check(molecules: &[Molecule]) -> Vector3<f32> {
+    let try_ = random_vector3_in_sphere(BOUNDRY_RADIUS - RADIUS);
+    if molecules.into_iter().fold(false, |acc, mol| {
+        let res = (mol.position - try_).norm() < 2.5 * RADIUS;
+        acc && res
+    }) {
+        random_position_with_check(molecules)
+    } else {
+        try_
+    }
 }
 
 fn main() {
@@ -93,39 +129,12 @@ fn main() {
     let start_instant = time::Instant::now();
     let time_limit = 15;
 
-    let n: usize = 6;
-    let mut molecules = vec![
-        Molecule::new(
-            &mut window,
-            Vector3::new(-0.3, 0.0, 0.0),
-            Vector3::new(0.1, 0.0, 0.0),
-        ),
-        Molecule::new(
-            &mut window,
-            Vector3::new(0.3, 0.05, 0.1),
-            Vector3::new(-0.2, 0.0, 0.0),
-        ),
-        Molecule::new(
-            &mut window,
-            Vector3::new(0.6, -0.1, 0.0),
-            Vector3::new(-0.3, 0.0, 0.0),
-        ),
-        Molecule::new(
-            &mut window,
-            Vector3::new(-0.8, 0.0, 0.0),
-            Vector3::new(0.1, 0.0, 0.0),
-        ),
-        Molecule::new(
-            &mut window,
-            Vector3::new(0.8, 0.05, 0.1),
-            Vector3::new(-0.2, 0.0, 0.0),
-        ),
-        Molecule::new(
-            &mut window,
-            Vector3::new(0.2, -0.1, 0.0),
-            Vector3::new(-0.3, 0.0, 0.0),
-        ),
-    ];
+    let mut molecules: Vec<Molecule> = Vec::with_capacity(N);
+    for _ in 0..N {
+        let position = random_position_with_check(&molecules);
+        let velocity = random_vector3_in_sphere(MAX_VEL);
+        molecules.push(Molecule::new(&mut window, position, velocity));
+    }
 
     let eye = Point3::new(BOUNDRY_RADIUS * 2.0, 0.0, 0.0);
     let at = Point3::origin();
@@ -134,12 +143,12 @@ fn main() {
         if start_instant.elapsed().as_secs() > time_limit {
             break;
         };
-        for i in 0..(n - 1) {
-            for j in (i + 1)..n {
+        for i in 0..(N - 1) {
+            for j in (i + 1)..N {
                 update_velocities(&mut molecules, i, j);
             }
             molecules[i].update_state();
         }
-        molecules[n - 1].update_state();
+        molecules[N - 1].update_state();
     }
 }
