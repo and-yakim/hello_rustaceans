@@ -8,7 +8,7 @@ const STEP: usize = 15;
 fn long_fizzbuzz(n: usize) -> Vec<u8> {
     assert!(n % STEP == 1);
 
-    let mut buffer: Vec<u8> = Vec::new();
+    let mut buffer: Vec<u8> = Vec::with_capacity(98);
     write!(
         &mut buffer,
         "{}\n{}\nFizz\n{}\nBuzz\nFizz\n{}\n{}\nFizz\nBuzz\n{}\nFizz\n{}\n{}\nFizzBuzz\n",
@@ -37,7 +37,7 @@ fn fizzbuzz(n: usize) -> String {
 
 fn print_fizzbuzz(range: usize) {
     let mut file = OpenOptions::new().append(true).open("/dev/null").unwrap();
-    for i in (1..range).step_by(STEP) {
+    for i in (1..(range + 1 - range % STEP)).step_by(STEP) {
         writeln!(file, "{}", String::from_utf8_lossy(&long_fizzbuzz(i))).unwrap();
         // print!("{}", String::from_utf8_lossy(&long_fizzbuzz(i)));
     }
@@ -69,3 +69,4 @@ fn main() {
 
 //Elapsed: 907474 µs - classic 1M /dev/null
 //Elapsed: 175508 µs - long_fizzbuzz
+//Elapsed: 127444 µs - Vec::with_capacity(98)
