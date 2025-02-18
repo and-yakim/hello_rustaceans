@@ -22,10 +22,10 @@ fn write_fizzbuzz_inlined(i: usize, buffer: &mut String) {
 
 fn fizzbuzz(n: usize) -> String {
     match (n % 3, n % 5) {
-        (0, 0) => "FizzBuzz".to_string(),
-        (0, _) => "Fizz".to_string(),
-        (_, 0) => "Buzz".to_string(),
-        _ => n.to_string(),
+        (0, 0) => String::from("FizzBuzz\n"),
+        (0, _) => String::from("Fizz\n"),
+        (_, 0) => String::from("Buzz\n"),
+        _ => String::from(n.to_string() + "\n"),
     }
 }
 
@@ -51,13 +51,12 @@ fn print_fizzbuzz(range: usize) {
             buffer.clear();
         }
     }
+    for i in (range + 1 - range % STEP)..(range + 1) {
+        buffer.push_str(&fizzbuzz(i));
+    }
     if buffer.len() > 0 {
         write!(file, "{}", &buffer).unwrap();
         // print!("{}", &buffer);
-    }
-    for i in (range + 1 - range % STEP)..(range + 1) {
-        writeln!(file, "{}", fizzbuzz(i)).unwrap();
-        // println!("{}", fizzbuzz(i));
     }
 }
 
