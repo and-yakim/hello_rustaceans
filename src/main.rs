@@ -1,12 +1,14 @@
-use std::io::Write;
+use std::fs::File;
+use std::io::{BufWriter, Write};
 use std::{fs::OpenOptions, time};
 
 const RANGE: usize = 1_000_000;
 const STEP: usize = 15;
 
-fn write_fizzbuzz_inlined(i: usize, buffer: &mut String) {
+fn write_fizzbuzz_inlined(i: usize, buffer: &mut BufWriter<File>) {
     assert!(i % STEP == 1);
-    let string = format!(
+    write!(
+        buffer,
         "{}\n{}\nFizz\n{}\nBuzz\nFizz\n{}\n{}\nFizz\nBuzz\n{}\nFizz\n{}\n{}\nFizzBuzz\n",
         i,
         i + 1,
@@ -16,8 +18,8 @@ fn write_fizzbuzz_inlined(i: usize, buffer: &mut String) {
         i + 10,
         i + 12,
         i + 13
-    );
-    buffer.push_str(&string);
+    )
+    .unwrap();
 }
 
 fn fizzbuzz(n: usize) -> String {
@@ -29,35 +31,17 @@ fn fizzbuzz(n: usize) -> String {
     }
 }
 
-const BUFFER: usize = 1024;
-
-fn string_size(n: usize) -> usize {
-    (n as f64).log10().floor() as usize + 1
-}
-
-fn sizecap(i: usize) -> usize {
-    BUFFER - (50 + 8 * string_size(i))
-}
-
 fn print_fizzbuzz(range: usize) {
-    let mut file = OpenOptions::new().append(true).open("/dev/null").unwrap();
-    let mut buffer = String::with_capacity(BUFFER);
+    let file = OpenOptions::new().append(true).open("/dev/null").unwrap();
+    let mut buffer = BufWriter::new(file);
 
     for i in (1..(range + 1 - range % STEP)).step_by(STEP) {
         write_fizzbuzz_inlined(i, &mut buffer);
-        if buffer.len() > sizecap(i) {
-            write!(file, "{}", &buffer).unwrap();
-            // print!("{}", &buffer);
-            buffer.clear();
-        }
     }
     for i in (range + 1 - range % STEP)..(range + 1) {
-        buffer.push_str(&fizzbuzz(i));
+        write!(buffer, "{}", &fizzbuzz(i)).unwrap();
     }
-    if buffer.len() > 0 {
-        write!(file, "{}", &buffer).unwrap();
-        // print!("{}", &buffer);
-    }
+    buffer.flush().unwrap();
 }
 
 fn main() {
@@ -75,3 +59,4 @@ fn main() {
 //Time:    107 ms - reuse same buffer
 //Time:     74 ms - 1kb buffer
 //Time:     45 ms - fix bug and String
+//Time:     43 ms - BufWriter
