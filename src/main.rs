@@ -4,10 +4,9 @@ use std::{fs::OpenOptions, time};
 const RANGE: usize = 1_000_000;
 const STEP: usize = 15;
 
-fn write_fizzbuzz_inlined(i: usize, buffer: &mut Vec<u8>) {
+fn write_fizzbuzz_inlined(i: usize, buffer: &mut String) {
     assert!(i % STEP == 1);
-    write!(
-        buffer,
+    let string = format!(
         "{}\n{}\nFizz\n{}\nBuzz\nFizz\n{}\n{}\nFizz\nBuzz\n{}\nFizz\n{}\n{}\nFizzBuzz\n",
         i,
         i + 1,
@@ -17,8 +16,8 @@ fn write_fizzbuzz_inlined(i: usize, buffer: &mut Vec<u8>) {
         i + 10,
         i + 12,
         i + 13
-    )
-    .unwrap();
+    );
+    buffer.push_str(&string);
 }
 
 fn fizzbuzz(n: usize) -> String {
@@ -42,15 +41,19 @@ fn sizecap(i: usize) -> usize {
 
 fn print_fizzbuzz(range: usize) {
     let mut file = OpenOptions::new().append(true).open("/dev/null").unwrap();
-    let mut buffer: Vec<u8> = Vec::with_capacity(BUFFER);
+    let mut buffer = String::with_capacity(BUFFER);
 
     for i in (1..(range + 1 - range % STEP)).step_by(STEP) {
         write_fizzbuzz_inlined(i, &mut buffer);
         if buffer.len() > sizecap(i) {
-            write!(file, "{}", String::from_utf8_lossy(&buffer)).unwrap();
-            // print!("{}", String::from_utf8_lossy(&buffer));
+            write!(file, "{}", &buffer).unwrap();
+            // print!("{}", &buffer);
             buffer.clear();
         }
+    }
+    if buffer.len() > 0 {
+        write!(file, "{}", &buffer).unwrap();
+        // print!("{}", &buffer);
     }
     for i in (range + 1 - range % STEP)..(range + 1) {
         writeln!(file, "{}", fizzbuzz(i)).unwrap();
@@ -67,8 +70,9 @@ fn main() {
     println!("Elapsed: {elapsed} µs");
 }
 
-//Elapsed: 907 ms - classic 1M /dev/null
-//Elapsed: 175 ms - long_fizzbuzz
-//Elapsed: 127 ms - Vec::with_capacity(95)
-//Elapsed: 107 ms - reuse same buffer
-//Elapsed: 74 ms  - 1kb buffer
+//Time:    907 ms - classic 1M /dev/null
+//Time:    175 ms - long_fizzbuzz
+//Time:    127 ms - Vec::with_capacity(95)
+//Time:    107 ms - reuse same buffer
+//Time:     74 ms - 1kb buffer
+//Time:     45 ms - fix bug and String
