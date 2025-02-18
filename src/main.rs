@@ -4,8 +4,6 @@ use std::{fs::OpenOptions, time};
 const RANGE: usize = 1_000_000;
 const STEP: usize = 15;
 
-// const SIZES: [(usize, usize); 17] = [(1, 58), (16, 63), (91, 66), (106, 71), (991, 74), (1006, 79), (9991, 82), (10006, 87), (99991, 90), (100006, 95), (999991, 98), (1000006, 103), (9999991, 106), (10000006, 111), (99999991, 114), (100000006, 119), (999999991, 122)]; // (i, len)
-
 fn write_fizzbuzz_inlined(i: usize, buffer: &mut Vec<u8>) {
     assert!(i % STEP == 1);
     write!(
@@ -32,15 +30,27 @@ fn fizzbuzz(n: usize) -> String {
     }
 }
 
+const BUFFER: usize = 1024;
+
+fn string_size(n: usize) -> usize {
+    (n as f64).log10().floor() as usize + 1
+}
+
+fn sizecap(i: usize) -> usize {
+    BUFFER - (50 + 8 * string_size(i))
+}
+
 fn print_fizzbuzz(range: usize) {
     let mut file = OpenOptions::new().append(true).open("/dev/null").unwrap();
-    let mut buffer: Vec<u8> = Vec::with_capacity(95);
+    let mut buffer: Vec<u8> = Vec::with_capacity(BUFFER);
 
     for i in (1..(range + 1 - range % STEP)).step_by(STEP) {
         write_fizzbuzz_inlined(i, &mut buffer);
-        write!(file, "{}", String::from_utf8_lossy(&buffer)).unwrap();
-        // print!("{}", String::from_utf8_lossy(&buffer));
-        buffer.clear();
+        if buffer.len() > sizecap(i) {
+            write!(file, "{}", String::from_utf8_lossy(&buffer)).unwrap();
+            // print!("{}", String::from_utf8_lossy(&buffer));
+            buffer.clear();
+        }
     }
     for i in (range + 1 - range % STEP)..(range + 1) {
         writeln!(file, "{}", fizzbuzz(i)).unwrap();
@@ -61,3 +71,4 @@ fn main() {
 //Elapsed: 175 ms - long_fizzbuzz
 //Elapsed: 127 ms - Vec::with_capacity(95)
 //Elapsed: 107 ms - reuse same buffer
+//Elapsed: 74 ms  - 1kb buffer
