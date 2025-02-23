@@ -11,13 +11,6 @@ const HEIGHT: f32 = ROWS as f32 * CELL;
 
 const TIMESTEP: u128 = 200; // ms
 
-enum Dir {
-    Up,
-    Down,
-    Left,
-    Right,
-}
-
 #[derive(Copy, Clone)]
 struct Vec2_ {
     x: i32,
@@ -52,6 +45,14 @@ impl Add for &Vec2_ {
     }
 }
 
+#[derive(Copy, Clone)]
+enum Dir {
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
 impl Dir {
     fn to_ivec2(&self) -> Vec2_ {
         match self {
@@ -75,12 +76,10 @@ fn draw_cell(offset: Vec2, cell: &Vec2_, color: Color) {
 
 #[macroquad::main("Hello World")]
 async fn main() {
-    // let mut field: [bool; ROWS * COLS] = []; // i can afford some memory not to redraw twice a cell // true means snake
+    // let mut field: [bool; ROWS * COLS] = []; // true means snake
     let mut snake: LinkedList<Vec2_> = LinkedList::new();
     let mut score = 0;
-
-    let mut dir_prev = Dir::Right;
-    let mut dir_next = Dir::Right;
+    let mut dir = Dir::Right;
 
     let mut food = Vec2_::new(COLS as i32 / 2, ROWS as i32 / 2);
     snake.push_front(food + Vec2_::new(-2, -4));
@@ -89,32 +88,34 @@ async fn main() {
     let mut instant = time::Instant::now();
 
     loop {
-        let elapsed = instant.elapsed().as_millis();
-        if elapsed > TIMESTEP {
-            // ingame time needed
+        let offset = vec2(
+            (screen_width() - WIDTH) / 2.,
+            (screen_height() - HEIGHT) / 2.,
+        );
 
-            // use dir_prev to push_front
+        if instant.elapsed().as_millis() > TIMESTEP {
+            instant = time::Instant::now();
             // check for food and collision
             // refresh food or tail
 
             // input handling
             // should swirl diagonally on simultaneous press
-            if let Some(_) = get_last_key_pressed() {
-                let _ = snake.pop_back().unwrap();
-                snake.push_front(snake.front().unwrap() + &dir_next.to_ivec2());
-                instant = time::Instant::now();
+
+            let ate = false;
+
+            if !ate {
+                let _ = &snake.pop_back().unwrap();
+            } else {
+                score += 1;
+                //generate new food
             }
+            snake.push_front(snake.front().unwrap() + &dir.to_ivec2());
         }
 
         clear_background(DARKGRAY);
 
         let text = format!("Score: {}", score);
         draw_text(&text, CELL, CELL * 2., CELL * 2., WHITE);
-
-        let offset = vec2(
-            (screen_width() - WIDTH) / 2.,
-            (screen_height() - HEIGHT) / 2.,
-        );
 
         for x in 0..COLS {
             for y in 0..ROWS {
