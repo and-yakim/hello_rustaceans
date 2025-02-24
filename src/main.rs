@@ -1,4 +1,4 @@
-use std::{collections::LinkedList, ops::Add, time};
+use std::{collections::LinkedList, time};
 
 use macroquad::prelude::*;
 
@@ -11,40 +11,6 @@ const HEIGHT: f32 = ROWS as f32 * CELL;
 
 const TIMESTEP: u128 = 250; // ms
 
-#[derive(Copy, Clone)]
-struct Vec2_ {
-    x: i32,
-    y: i32,
-}
-
-impl Vec2_ {
-    fn new(x: i32, y: i32) -> Self {
-        Self { x, y }
-    }
-}
-
-impl Add for Vec2_ {
-    type Output = Vec2_;
-
-    fn add(self, rhs: Vec2_) -> Vec2_ {
-        Vec2_ {
-            x: (self.x + rhs.x + COLS) % COLS,
-            y: (self.y + rhs.y + ROWS) % ROWS,
-        }
-    }
-}
-
-impl Add for &Vec2_ {
-    type Output = Vec2_;
-
-    fn add(self, rhs: &Vec2_) -> Vec2_ {
-        Vec2_ {
-            x: (self.x + rhs.x + COLS) % COLS,
-            y: (self.y + rhs.y + ROWS) % ROWS,
-        }
-    }
-}
-
 enum Dir {
     Up,
     Down,
@@ -53,17 +19,17 @@ enum Dir {
 }
 
 impl Dir {
-    fn to_ivec2(&self) -> Vec2_ {
+    fn to_ivec2(&self) -> IVec2 {
         match self {
-            Dir::Up => Vec2_ { x: 0, y: -1 },
-            Dir::Down => Vec2_ { x: 0, y: 1 },
-            Dir::Left => Vec2_ { x: -1, y: 0 },
-            Dir::Right => Vec2_ { x: 1, y: 0 },
+            Dir::Up => IVec2 { x: 0, y: -1 },
+            Dir::Down => IVec2 { x: 0, y: 1 },
+            Dir::Left => IVec2 { x: -1, y: 0 },
+            Dir::Right => IVec2 { x: 1, y: 0 },
         }
     }
 }
 
-fn draw_cell(offset: Vec2, cell: &Vec2_, color: Color) {
+fn draw_cell(offset: Vec2, cell: &IVec2, color: Color) {
     draw_rectangle(
         offset.x + cell.x as f32 * CELL,
         offset.y + cell.y as f32 * CELL,
@@ -78,14 +44,14 @@ const KEY_CODES: [KeyCode; 4] = [KeyCode::W, KeyCode::S, KeyCode::A, KeyCode::D]
 #[macroquad::main("Snake")]
 async fn main() {
     // let mut field: [bool; ROWS * COLS] = []; // true means snake
-    let mut snake: LinkedList<Vec2_> = LinkedList::new();
+    let mut snake: LinkedList<IVec2> = LinkedList::new();
     let mut score = 0;
     let mut dir = Dir::Down;
 
-    let mut food = Vec2_::new(COLS as i32 / 2, ROWS as i32 / 2);
-    snake.push_front(food + Vec2_::new(-2, -4));
-    snake.push_front(food + Vec2_::new(-1, -4));
-    snake.push_front(food + Vec2_::new(0, -4));
+    let mut food = IVec2::new(COLS as i32 / 2, ROWS as i32 / 2);
+    snake.push_front(food + IVec2::new(-2, -4));
+    snake.push_front(food + IVec2::new(-1, -4));
+    snake.push_front(food + IVec2::new(0, -4));
 
     let mut instant = time::Instant::now();
 
@@ -130,7 +96,7 @@ async fn main() {
                 score += 1;
                 //generate new food
             }
-            snake.push_front(snake.front().unwrap() + &dir.to_ivec2());
+            snake.push_front(snake.front().unwrap().to_owned() + dir.to_ivec2());
         }
 
         clear_background(DARKGRAY);
@@ -140,7 +106,7 @@ async fn main() {
 
         for x in 0..COLS {
             for y in 0..ROWS {
-                draw_cell(offset, &Vec2_::new(x, y), GRAY);
+                draw_cell(offset, &IVec2::new(x, y), GRAY);
             }
         }
 
