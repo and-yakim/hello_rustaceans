@@ -89,7 +89,7 @@ async fn main() {
 
     let mut instant = time::Instant::now();
 
-    let mut last_key: Option<KeyCode> = None;
+    let mut last_key = KeyCode::Unknown;
 
     loop {
         let offset = vec2(
@@ -97,7 +97,7 @@ async fn main() {
             (screen_height() - HEIGHT) / 2.,
         );
 
-        last_key = get_last_key_pressed().or(last_key);
+        last_key = get_last_key_pressed().unwrap_or(last_key);
 
         if instant.elapsed().as_millis() > TIMESTEP {
             instant = time::Instant::now();
@@ -111,13 +111,13 @@ async fn main() {
                     std::mem::transmute(keys[0] as u8 + keys[1] as u8 * 2 - 1)
                 },
                 Dir::Up | Dir::Down => match last_key {
-                    Some(key) if key == KEY_CODES[2] => Dir::Left,
-                    Some(key) if key == KEY_CODES[3] => Dir::Right,
+                    KeyCode::A => Dir::Left,
+                    KeyCode::D => Dir::Right,
                     _ => dir,
                 },
                 Dir::Left | Dir::Right => match last_key {
-                    Some(key) if key == KEY_CODES[0] => Dir::Up,
-                    Some(key) if key == KEY_CODES[1] => Dir::Down,
+                    KeyCode::W => Dir::Up,
+                    KeyCode::S => Dir::Down,
                     _ => dir,
                 },
             };
