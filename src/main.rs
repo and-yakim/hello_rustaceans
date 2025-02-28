@@ -11,15 +11,19 @@ const HEIGHT: f32 = ROWS as f32 * CELL;
 
 const TIMESTEP: u128 = 250; // ms
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 struct Vec2_ {
     x: i32,
     y: i32,
 }
 
 impl Vec2_ {
-    fn new(x: i32, y: i32) -> Self {
-        Self { x, y }
+    fn new(x: i32, y: i32) -> Vec2_ {
+        Vec2_ { x, y }
+    }
+
+    fn rand() -> Vec2_ {
+        Vec2_::new(COLS / 2, ROWS / 2)
     }
 }
 
@@ -75,20 +79,62 @@ fn draw_cell(offset: Vec2, cell: &Vec2_, color: Color) {
 
 const KEY_CODES: [KeyCode; 4] = [KeyCode::W, KeyCode::S, KeyCode::A, KeyCode::D];
 
+struct Snake {
+    field: [[bool; ROWS as usize]; COLS as usize],
+    state: LinkedList<Vec2_>,
+}
+
+impl Snake {
+    fn new() -> Snake {
+        let mut snake = Snake {
+            field: [[false; ROWS as usize]; COLS as usize],
+            state: LinkedList::new(),
+        };
+        snake.add(Vec2_::new(COLS as i32 / 2 - 2, ROWS as i32 / 2 - 4));
+        snake
+    }
+
+    fn add(&mut self, cell: Vec2_) {
+        self.state.push_front(cell);
+        self.field[cell.x as usize][cell.y as usize] = true;
+    }
+
+    fn pop(&mut self) {
+        if let Some(cell) = self.state.pop_back() {
+            self.field[cell.x as usize][cell.y as usize] = false;
+        }
+    }
+
+    fn head(&self) -> Option<&Vec2_> {
+        self.state.front()
+    }
+
+    fn check(&self, cell: Vec2_) -> bool {
+        self.field[cell.x as usize][cell.y as usize]
+    }
+
+    fn draw(&self, offset: Vec2) {
+        for x in 0..COLS {
+            for y in 0..ROWS {
+                let cell = Vec2_::new(x, y);
+                let color = if self.check(cell) { DARKPURPLE } else { GRAY };
+                draw_cell(offset, &cell, color);
+            }
+        }
+    }
+}
+
 #[macroquad::main("Snake")]
 async fn main() {
-    // let mut field: [bool; ROWS * COLS] = []; // true means snake
-    let mut snake: LinkedList<Vec2_> = LinkedList::new();
+    let mut snake = Snake::new();
     let mut score = 0;
     let mut dir = Dir::Down;
 
-    let mut food = Vec2_::new(COLS as i32 / 2, ROWS as i32 / 2);
-    snake.push_front(food + Vec2_::new(-2, -4));
-    snake.push_front(food + Vec2_::new(-1, -4));
-    snake.push_front(food + Vec2_::new(0, -4));
+    let mut food = Vec2_::rand();
 
     let mut instant = time::Instant::now();
 
+    // need a rewrite of input: wasd_down and a last_key should be last_from_wasd and flushed on timestep
     let mut last_key = KeyCode::Unknown;
 
     loop {
@@ -122,15 +168,16 @@ async fn main() {
                 },
             };
 
+            snake.add(snake.head().unwrap() + &dir.to_ivec2());
+
             let ate = false;
 
             if !ate {
-                snake.pop_back();
+                snake.pop();
             } else {
                 score += 1;
-                //generate new food
+                food = Vec2_::rand();
             }
-            snake.push_front(snake.front().unwrap() + &dir.to_ivec2());
         }
 
         clear_background(DARKGRAY);
@@ -138,15 +185,7 @@ async fn main() {
         let text = format!("Score: {}", score);
         draw_text(&text, CELL, CELL * 2., CELL * 2., WHITE);
 
-        for x in 0..COLS {
-            for y in 0..ROWS {
-                draw_cell(offset, &Vec2_::new(x, y), GRAY);
-            }
-        }
-
-        for cell in &snake {
-            draw_cell(offset, &cell, DARKPURPLE);
-        }
+        snake.draw(offset);
 
         draw_cell(offset, &food, GOLD);
 
