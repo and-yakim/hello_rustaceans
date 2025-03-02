@@ -1,4 +1,8 @@
-use std::{collections::LinkedList, ops::Add, time};
+use std::{
+    collections::LinkedList,
+    ops::{Add, Index, IndexMut},
+    time,
+};
 
 use macroquad::prelude::*;
 
@@ -9,9 +13,10 @@ const CELL: f32 = 20.;
 const WIDTH: f32 = COLS as f32 * CELL;
 const HEIGHT: f32 = ROWS as f32 * CELL;
 
+const MAX_SCORE: i32 = COLS * ROWS - 1;
 const TIMESTEP: u128 = 250; // ms
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 struct Vec2_ {
     x: i32,
     y: i32,
@@ -96,12 +101,12 @@ impl Snake {
 
     fn add(&mut self, cell: Vec2_) {
         self.state.push_front(cell);
-        self.field[cell.x as usize][cell.y as usize] = true;
+        self[cell] = true;
     }
 
     fn pop(&mut self) {
         if let Some(cell) = self.state.pop_back() {
-            self.field[cell.x as usize][cell.y as usize] = false;
+            self[cell] = false;
         }
     }
 
@@ -109,18 +114,28 @@ impl Snake {
         self.state.front()
     }
 
-    fn check(&self, cell: Vec2_) -> bool {
-        self.field[cell.x as usize][cell.y as usize]
-    }
-
     fn draw(&self, offset: Vec2) {
         for x in 0..COLS {
             for y in 0..ROWS {
                 let cell = Vec2_::new(x, y);
-                let color = if self.check(cell) { DARKPURPLE } else { GRAY };
+                let color = if self[cell] { DARKPURPLE } else { GRAY };
                 draw_cell(offset, &cell, color);
             }
         }
+    }
+}
+
+impl Index<Vec2_> for Snake {
+    type Output = bool;
+
+    fn index(&self, index: Vec2_) -> &bool {
+        &self.field[index.x as usize][index.y as usize]
+    }
+}
+
+impl IndexMut<Vec2_> for Snake {
+    fn index_mut(&mut self, index: Vec2_) -> &mut bool {
+        &mut self.field[index.x as usize][index.y as usize]
     }
 }
 
@@ -168,16 +183,20 @@ async fn main() {
                 },
             };
 
-            snake.add(snake.head().unwrap() + &dir.to_ivec2());
-
-            let ate = false;
-
-            if !ate {
-                snake.pop();
-            } else {
+            let next_cell = snake.head().unwrap() + &dir.to_ivec2();
+            if snake[next_cell] {
+                println!("Game Over!\nScore: {score}");
+                break;
+            } else if score == MAX_SCORE {
+                println!("Game Over!\nScore: {score}\nMax score achieved!");
+                break;
+            } else if next_cell == food {
                 score += 1;
                 food = Vec2_::rand();
+            } else {
+                snake.pop();
             }
+            snake.add(next_cell);
         }
 
         clear_background(DARKGRAY);
