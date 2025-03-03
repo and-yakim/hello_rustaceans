@@ -17,37 +17,37 @@ const MAX_SCORE: i32 = COLS * ROWS - 1;
 const TIMESTEP: u128 = 250; // ms
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-struct Vec2_ {
+struct Cell {
     x: i32,
     y: i32,
 }
 
-impl Vec2_ {
-    fn new(x: i32, y: i32) -> Vec2_ {
-        Vec2_ { x, y }
+impl Cell {
+    fn new(x: i32, y: i32) -> Cell {
+        Cell { x, y }
     }
 
-    fn rand() -> Vec2_ {
-        Vec2_::new(COLS / 2, ROWS / 2)
+    fn rand() -> Cell {
+        Cell::new(rand::gen_range(0, COLS), rand::gen_range(0, ROWS))
     }
 }
 
-impl Add for Vec2_ {
-    type Output = Vec2_;
+impl Add for Cell {
+    type Output = Cell;
 
-    fn add(self, rhs: Vec2_) -> Vec2_ {
-        Vec2_ {
+    fn add(self, rhs: Cell) -> Cell {
+        Cell {
             x: (self.x + rhs.x + COLS) % COLS,
             y: (self.y + rhs.y + ROWS) % ROWS,
         }
     }
 }
 
-impl Add for &Vec2_ {
-    type Output = Vec2_;
+impl Add for &Cell {
+    type Output = Cell;
 
-    fn add(self, rhs: &Vec2_) -> Vec2_ {
-        Vec2_ {
+    fn add(self, rhs: &Cell) -> Cell {
+        Cell {
             x: (self.x + rhs.x + COLS) % COLS,
             y: (self.y + rhs.y + ROWS) % ROWS,
         }
@@ -62,17 +62,17 @@ enum Dir {
 }
 
 impl Dir {
-    fn to_ivec2(&self) -> Vec2_ {
+    fn to_ivec2(&self) -> Cell {
         match self {
-            Dir::Up => Vec2_ { x: 0, y: -1 },
-            Dir::Down => Vec2_ { x: 0, y: 1 },
-            Dir::Left => Vec2_ { x: -1, y: 0 },
-            Dir::Right => Vec2_ { x: 1, y: 0 },
+            Dir::Up => Cell { x: 0, y: -1 },
+            Dir::Down => Cell { x: 0, y: 1 },
+            Dir::Left => Cell { x: -1, y: 0 },
+            Dir::Right => Cell { x: 1, y: 0 },
         }
     }
 }
 
-fn draw_cell(offset: Vec2, cell: &Vec2_, color: Color) {
+fn draw_cell(offset: Vec2, cell: &Cell, color: Color) {
     draw_rectangle(
         offset.x + cell.x as f32 * CELL,
         offset.y + cell.y as f32 * CELL,
@@ -86,7 +86,7 @@ const KEY_CODES: [KeyCode; 4] = [KeyCode::W, KeyCode::S, KeyCode::A, KeyCode::D]
 
 struct Snake {
     field: [[bool; ROWS as usize]; COLS as usize],
-    state: LinkedList<Vec2_>,
+    state: LinkedList<Cell>,
 }
 
 impl Snake {
@@ -95,11 +95,11 @@ impl Snake {
             field: [[false; ROWS as usize]; COLS as usize],
             state: LinkedList::new(),
         };
-        snake.add(Vec2_::new(COLS as i32 / 2 - 2, ROWS as i32 / 2 - 4));
+        snake.add(Cell::new(COLS as i32 / 2 - 2, ROWS as i32 / 2 - 4));
         snake
     }
 
-    fn add(&mut self, cell: Vec2_) {
+    fn add(&mut self, cell: Cell) {
         self.state.push_front(cell);
         self[cell] = true;
     }
@@ -110,31 +110,45 @@ impl Snake {
         }
     }
 
-    fn head(&self) -> Option<&Vec2_> {
+    fn head(&self) -> Option<&Cell> {
         self.state.front()
     }
 
     fn draw(&self, offset: Vec2) {
         for x in 0..COLS {
             for y in 0..ROWS {
-                let cell = Vec2_::new(x, y);
+                let cell = Cell::new(x, y);
                 let color = if self[cell] { DARKPURPLE } else { GRAY };
                 draw_cell(offset, &cell, color);
             }
         }
     }
+
+    fn get_rand(&self) -> Option<Cell> {
+        for _ in 0..10 {
+            let cell = Cell::rand();
+            if !self[cell] {
+                return Some(cell);
+            }
+        }
+        self.field.iter().enumerate().find_map(|(i, arr)| {
+            arr.iter()
+                .position(|v| !v)
+                .map(|j| Cell::new(i as i32, j as i32))
+        })
+    }
 }
 
-impl Index<Vec2_> for Snake {
+impl Index<Cell> for Snake {
     type Output = bool;
 
-    fn index(&self, index: Vec2_) -> &bool {
+    fn index(&self, index: Cell) -> &bool {
         &self.field[index.x as usize][index.y as usize]
     }
 }
 
-impl IndexMut<Vec2_> for Snake {
-    fn index_mut(&mut self, index: Vec2_) -> &mut bool {
+impl IndexMut<Cell> for Snake {
+    fn index_mut(&mut self, index: Cell) -> &mut bool {
         &mut self.field[index.x as usize][index.y as usize]
     }
 }
@@ -145,7 +159,10 @@ async fn main() {
     let mut score = 0;
     let mut dir = Dir::Down;
 
-    let mut food = Vec2_::rand();
+    if let Ok(n) = time::SystemTime::now().duration_since(time::SystemTime::UNIX_EPOCH) {
+        rand::srand(n.as_secs());
+    }
+    let mut food = snake.get_rand().unwrap();
 
     let mut instant = time::Instant::now();
 
@@ -192,7 +209,7 @@ async fn main() {
                 break;
             } else if next_cell == food {
                 score += 1;
-                food = Vec2_::rand();
+                food = snake.get_rand().unwrap();
             } else {
                 snake.pop();
             }
