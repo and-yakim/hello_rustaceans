@@ -15,6 +15,7 @@ fn get_source_rect(x: usize, y: usize) -> Rect {
     Rect::new(SPRITE * x as f32, SPRITE * y as f32, SPRITE, SPRITE)
 }
 
+#[derive(Copy, Clone, PartialEq)]
 enum PlayerMove {
     Sit,
     Hold,
@@ -32,35 +33,44 @@ enum Dir {
     Right,
 }
 
-struct Animation {
-    line: usize,   // 0..6
-    column: usize, // _ + 6
-    step: usize,
+struct PlayerAnimation {
+    state: PlayerMove,
+    dir: Dir,
+    frame: usize,
 }
 
-impl Animation {
-    fn new(player_move: PlayerMove, direction: Dir) -> Animation {
-        Animation {
-            line: player_move as usize,
-            column: 6 + match direction {
-                Dir::Up => 2,
-                Dir::Down => 0,
-                Dir::Left | Dir::Right => 4,
-            },
-            step: 0,
+impl PlayerAnimation {
+    fn new(state: PlayerMove, dir: Dir) -> PlayerAnimation {
+        PlayerAnimation {
+            state,
+            dir,
+            frame: 0,
         }
     }
 
-    fn update(&mut self) {
-        self.step = (self.step + 1) % FRAMES;
+    fn update(&mut self, state: PlayerMove, dir: Dir) {
+        if self.state != state || self.dir != dir {
+            *self = Self::new(state, dir);
+        }
     }
 
-    fn draw(&self, sprite: &Texture2D, pos: Vec2, is_left: bool) {
+    fn step(&mut self) {
+        self.frame = (self.frame + 1) % FRAMES;
+    }
+
+    fn draw(&self, sprite: &Texture2D, pos: Vec2) {
+        let column = 6 // sprite.png offset
+            + self.frame
+            + match self.dir {
+                Dir::Up => 2,
+                Dir::Down => 0,
+                Dir::Left | Dir::Right => 4,
+            };
         let params = DrawTextureParams {
             dest_size: Some(SIZE),
-            source: Some(get_source_rect(self.column + self.step, self.line)),
+            source: Some(get_source_rect(column, self.state as usize)),
             rotation: 0.0,
-            flip_x: is_left,
+            flip_x: self.dir == Dir::Left,
             flip_y: false,
             pivot: None,
         };
@@ -77,20 +87,25 @@ async fn main() {
     sprite.set_filter(FilterMode::Nearest);
 
     let position = vec2((width - UNIT) / 2.0, (height - UNIT) / 2.0);
-    let direction = Dir::Right;
-    let player_move = PlayerMove::Walk;
+    let mut direction = Dir::Right;
+    let mut player_move = PlayerMove::Idle;
 
-    let mut animation = Animation::new(player_move, direction);
+    let mut animation = PlayerAnimation::new(player_move, direction);
+
+    let mut last_key = KeyCode::Unknown;
 
     loop {
         if instant.elapsed().as_millis() > TIMESTEP {
             instant = time::Instant::now();
-            animation.update();
+
+            animation.update(player_move, direction);
+
+            animation.step();
         }
 
         clear_background(DARKGRAY);
 
-        animation.draw(&sprite, position, direction == Dir::Left);
+        animation.draw(&sprite, position);
 
         if is_key_pressed(KeyCode::Escape) {
             break;
