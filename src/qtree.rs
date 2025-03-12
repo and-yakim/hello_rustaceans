@@ -8,12 +8,12 @@ pub trait Positioned {
 pub enum QTreeMut<T: Clone + Positioned> {
     BlankNode {
         region: Rect,
-        depth: usize,
+        depth: u8,
         children: Vec<QTreeMut<T>>,
     },
     ValueNode {
         region: Rect,
-        depth: usize,
+        depth: u8,
         values: Vec<T>,
     },
 }
@@ -95,5 +95,24 @@ impl<T: Clone + Positioned> QTreeMut<T> {
                 bottom_right,
             ),
         ]
+    }
+}
+
+#[derive(Debug)]
+struct IndexedNode<T: Clone + Positioned> {
+    parent: usize,
+    children: Option<[usize; 4]>,
+    values: Vec<T>,
+}
+
+#[derive(Debug)]
+pub struct QTree<T: Clone + Positioned> {
+    tree: Vec<IndexedNode<T>>,
+}
+
+impl<T: Clone + Positioned> QTree<T> {
+    fn new(tree: QTreeMut<T>) -> QTree<T> {
+        // vec![root, root.0, root.1, root.2, root.3, *layer3*, .. ]
+        QTree { tree: Vec::new() }
     }
 }

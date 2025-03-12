@@ -5,8 +5,8 @@ use std::time;
 
 use macroquad::prelude::*;
 
-fn draw_region(rect: &Rect) {
-    draw_rectangle_lines(rect.x, rect.y, rect.w, rect.h, 2.0, BLUE);
+fn draw_region(rect: &Rect, color: Color) {
+    draw_rectangle_lines(rect.x, rect.y, rect.w, rect.h, 2.0, color);
 }
 
 impl<T: Clone + Positioned> QTreeMut<T> {
@@ -15,13 +15,13 @@ impl<T: Clone + Positioned> QTreeMut<T> {
             QTreeMut::BlankNode {
                 region, children, ..
             } => {
-                draw_region(region);
+                draw_region(region, BLUE);
                 for node in children.iter() {
                     node.draw();
                 }
             }
             QTreeMut::ValueNode { region, .. } => {
-                draw_region(region);
+                draw_region(region, GREEN);
             }
         }
     }
