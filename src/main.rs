@@ -9,10 +9,10 @@ fn draw_region(rect: &Rect) {
     draw_rectangle_lines(rect.x, rect.y, rect.w, rect.h, 2.0, BLUE);
 }
 
-impl<T> QTree<T> {
+impl<T: Clone + Positioned> QTreeMut<T> {
     fn draw(&self) {
         match self {
-            QTree::BlankNode {
+            QTreeMut::BlankNode {
                 region, children, ..
             } => {
                 draw_region(region);
@@ -20,10 +20,21 @@ impl<T> QTree<T> {
                     node.draw();
                 }
             }
-            QTree::ValueNode { region, .. } => {
+            QTreeMut::ValueNode { region, .. } => {
                 draw_region(region);
             }
         }
+    }
+}
+
+#[derive(Clone)]
+struct MyObstacle {
+    value: Vec2,
+}
+
+impl Positioned for MyObstacle {
+    fn pos(&self) -> Vec2 {
+        self.value
     }
 }
 
@@ -36,8 +47,7 @@ async fn main() {
     let (width, height) = (screen_width(), screen_height());
     let win_rect = Rect::new(0.0, 0.0, width, height);
 
-    let mut quadtree: QTree<Vec2> = QTree::new(win_rect);
-    println!("{:#?}", quadtree);
+    let mut quadtree: QTreeMut<MyObstacle> = QTreeMut::new(win_rect, vec![]);
 
     loop {
         clear_background(DARKGRAY);
