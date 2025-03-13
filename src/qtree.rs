@@ -1,9 +1,17 @@
 use macroquad::math::{Rect, Vec2};
-use serde::{Deserialize, Serialize};
+// use serde::{Deserialize, Serialize};
 
 pub trait Positioned {
     fn pos(&self) -> Vec2;
 }
+
+// #[derive(Copy, Clone, PartialEq)]
+// pub enum Dir {
+//     Up,
+//     Down,
+//     Left,
+//     Right,
+// }
 
 #[derive(Clone, Debug)]
 pub enum QTreeMut<T: Clone + Positioned> {
@@ -30,14 +38,14 @@ impl<T: Clone + Positioned> QTreeMut<T> {
 
     // pub fn from(tree: QTree<T>) -> Self {}
 
-    pub fn region(&self) -> Rect {
+    fn region(&self) -> Rect {
         match self {
             Self::BlankNode { region, .. } => *region,
             Self::ValueNode { region, .. } => *region,
         }
     }
 
-    pub fn depth(&self) -> u8 {
+    fn depth(&self) -> u8 {
         match self {
             Self::BlankNode { depth, .. } => *depth,
             Self::ValueNode { depth, .. } => *depth,
@@ -90,7 +98,7 @@ impl<T: Clone + Positioned> QTreeMut<T> {
         }
     }
 
-    // pub fn enlarge(self) ->
+    // pub fn enlarge(self, dir: Dir) -> Self {}
 
     fn split_values(region: &Rect, values: Vec<T>) -> [(Rect, Vec<T>); 4] {
         let (half_w, half_h) = (region.w / 2.0, region.h / 2.0);
@@ -136,14 +144,15 @@ impl<T: Clone + Positioned> QTreeMut<T> {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+// #[derive(Serialize, Deserialize, Debug)]
 struct IndexedNode<T: Clone + Positioned> {
+    region: Rect, // needs a serde wrapper
     parent: u16,
     children: Option<[u16; 4]>,
     values: Vec<T>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+// #[derive(Serialize, Deserialize, Debug)]
 pub struct QTree<T: Clone + Positioned> {
     tree: Vec<IndexedNode<T>>,
 }
