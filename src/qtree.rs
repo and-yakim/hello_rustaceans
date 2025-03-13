@@ -1,4 +1,5 @@
 use macroquad::math::{Rect, Vec2};
+use serde::{Deserialize, Serialize};
 
 pub trait Positioned {
     fn pos(&self) -> Vec2;
@@ -64,15 +65,15 @@ impl<T: Clone + Positioned> QTreeMut<T> {
         let mut bottom_right = Vec::new();
 
         for value in values {
-            let coords = &value.pos();
-            if coords.x < center_x {
-                if coords.y < center_y {
+            let pos = &value.pos();
+            if pos.x < center_x {
+                if pos.y < center_y {
                     top_left.push(value);
                 } else {
                     bottom_left.push(value);
                 }
             } else {
-                if coords.y < center_y {
+                if pos.y < center_y {
                     top_right.push(value);
                 } else {
                     bottom_right.push(value);
@@ -98,14 +99,14 @@ impl<T: Clone + Positioned> QTreeMut<T> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 struct IndexedNode<T: Clone + Positioned> {
-    parent: usize,
-    children: Option<[usize; 4]>,
+    parent: u16,
+    children: Option<[u16; 4]>,
     values: Vec<T>,
 }
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct QTree<T: Clone + Positioned> {
     tree: Vec<IndexedNode<T>>,
 }
