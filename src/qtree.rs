@@ -20,33 +20,68 @@ pub enum QTreeMut<T: Clone + Positioned> {
 }
 
 impl<T: Clone + Positioned> QTreeMut<T> {
-    pub fn new(region: Rect, values: Vec<T>) -> QTreeMut<T> {
-        QTreeMut::ValueNode {
+    pub fn new(region: Rect, values: Vec<T>) -> Self {
+        Self::ValueNode {
             region,
             depth: 0,
             values,
         }
     }
 
-    fn add(&mut self, value: T) {}
+    // pub fn from(tree: QTree<T>) -> Self {}
 
-    pub fn split(self) -> QTreeMut<T> {
+    pub fn region(&self) -> Rect {
         match self {
-            QTreeMut::BlankNode { .. } => self,
-            QTreeMut::ValueNode {
+            Self::BlankNode { region, .. } => *region,
+            Self::ValueNode { region, .. } => *region,
+        }
+    }
+
+    pub fn depth(&self) -> u8 {
+        match self {
+            Self::BlankNode { depth, .. } => *depth,
+            Self::ValueNode { depth, .. } => *depth,
+        }
+    }
+
+    pub fn update<F: Clone + FnMut(&Self) -> Self>(&self, mut f: F) -> Self {
+        match self {
+            Self::BlankNode { children, .. } => {
+                let self_updated = f(self);
+                Self::BlankNode {
+                    region: self_updated.region(),
+                    depth: self_updated.depth(),
+                    children: children
+                        .iter()
+                        .map(|node| Self::update(node, f.clone()))
+                        .collect(),
+                }
+            }
+            Self::ValueNode { .. } => f(self),
+        }
+    }
+
+    // pub fn add(&mut self, value: T) {}
+
+    // pub fn remove(&mut self, value: T) {}
+
+    pub fn split(self) -> Self {
+        match self {
+            Self::BlankNode { .. } => self,
+            Self::ValueNode {
                 region,
                 depth,
                 values,
             } => {
                 let children = Self::split_values(&region, values)
                     .iter()
-                    .map(|(reg, val)| QTreeMut::ValueNode {
+                    .map(|(reg, val)| Self::ValueNode {
                         region: *reg,
                         depth: depth + 1,
                         values: val.to_vec(),
                     })
                     .collect();
-                QTreeMut::BlankNode {
+                Self::BlankNode {
                     region: region,
                     depth: depth,
                     children,
@@ -54,6 +89,8 @@ impl<T: Clone + Positioned> QTreeMut<T> {
             }
         }
     }
+
+    // pub fn enlarge(self) ->
 
     fn split_values(region: &Rect, values: Vec<T>) -> [(Rect, Vec<T>); 4] {
         let (half_w, half_h) = (region.w / 2.0, region.h / 2.0);
@@ -112,7 +149,7 @@ pub struct QTree<T: Clone + Positioned> {
 }
 
 impl<T: Clone + Positioned> QTree<T> {
-    fn new(tree: QTreeMut<T>) -> QTree<T> {
+    fn new(tree: QTreeMut<T>) -> Self {
         // vec![root, root.0, root.1, root.2, root.3, *layer3*, .. ]
         QTree { tree: Vec::new() }
     }
