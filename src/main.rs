@@ -5,16 +5,9 @@ use std::time;
 
 use macroquad::prelude::*;
 
-fn draw_region(rect: &Rect, scale: f32, color: Color) {
-    draw_rectangle_lines(
-        rect.x,
-        rect.y,
-        rect.w,
-        rect.h,
-        screen_height() / 100.0,
-        color,
-    );
-    let font_size: f32 = 20.0 * scale;
+fn draw_region(rect: &Rect, depth: &u8, scale: f32, color: Color) {
+    draw_rectangle_lines(rect.x, rect.y, rect.w, rect.h, 4.0 / scale, color);
+    let font_size: f32 = 40.0 / (depth + 1) as f32;
     draw_text(
         &format!("{}", rect.w),
         rect.x + rect.w / 2.0 - rect.w.log10() * font_size / 4.0,
@@ -28,15 +21,17 @@ impl<T: Clone + Positioned> QTreeMut<T> {
     fn draw(&self, scale: f32) {
         match self {
             QTreeMut::BlankNode {
-                region, children, ..
+                region,
+                depth,
+                children,
             } => {
-                draw_region(region, scale, BLUE);
+                draw_region(region, depth, scale, BLUE);
                 for node in children.iter() {
                     node.draw(scale);
                 }
             }
-            QTreeMut::ValueNode { region, .. } => {
-                draw_region(region, scale, GREEN);
+            QTreeMut::ValueNode { region, depth, .. } => {
+                draw_region(region, depth, scale, GREEN);
             }
         }
     }
@@ -58,21 +53,38 @@ async fn main() {
     if let Ok(n) = time::SystemTime::now().duration_since(time::SystemTime::UNIX_EPOCH) {
         rand::srand(n.as_secs());
     }
+    set_default_filter_mode(FilterMode::Nearest);
 
     let (width, height) = (screen_width(), screen_height());
+    let screen_center = vec2(width / 2.0, height / 2.0);
     let region = Rect::new(0.0, 0.0, height, height);
 
     let mut quadtree: QTreeMut<MyObstacle> = QTreeMut::new(region, vec![]);
 
-    let mut target = vec2(width / 2.0, height / 2.0);
-    let mut scale = 2.0;
+    let mut target = screen_center;
+    let mut scale = 1.0;
+    let mut zoom = vec2(2.0 * scale / width, 2.0 * scale / height);
     let mut camera = Camera2D {
         target,
-        zoom: vec2(scale / width, scale / height),
+        zoom,
         ..Default::default()
     };
 
+    let mut p = screen_center;
+
     loop {
+        if is_mouse_button_pressed(MouseButton::Left) {
+            let click = Vec2::from(mouse_position());
+            // WRONG
+            let world_pos = (click - screen_center) / scale + target;
+            p = world_pos;
+            println!("{} {}", click, world_pos);
+            if quadtree.region().contains(world_pos) {
+                quadtree = quadtree.split_by_click(click);
+                println!("Split done!");
+            }
+        }
+
         match get_last_key_pressed() {
             Some(KeyCode::Q) => {
                 scale *= 1.1;
@@ -82,6 +94,7 @@ async fn main() {
             }
             _ => {}
         }
+        zoom = vec2(2.0 * scale / width, 2.0 * scale / height);
 
         if is_key_down(KeyCode::D) {
             target.x += 10.0 / scale;
@@ -98,7 +111,7 @@ async fn main() {
 
         camera = Camera2D {
             target,
-            zoom: vec2(scale / width, scale / height),
+            zoom,
             ..Default::default()
         };
 
@@ -107,6 +120,8 @@ async fn main() {
         clear_background(DARKGRAY);
 
         quadtree.draw(scale);
+
+        draw_circle(p.x, p.y, 4.0 / scale, RED);
 
         if is_key_pressed(KeyCode::Escape) {
             break;

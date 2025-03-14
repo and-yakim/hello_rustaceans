@@ -13,6 +13,14 @@ pub trait Positioned {
 //     Right,
 // }
 
+#[derive(Copy, Clone, PartialEq)]
+enum Quadrant {
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight,
+}
+
 #[derive(Clone, Debug)]
 pub enum QTreeMut<T: Clone + Positioned> {
     BlankNode {
@@ -38,7 +46,7 @@ impl<T: Clone + Positioned> QTreeMut<T> {
 
     // pub fn from(tree: QTree<T>) -> Self {}
 
-    fn region(&self) -> Rect {
+    pub fn region(&self) -> Rect {
         match self {
             Self::BlankNode { region, .. } => *region,
             Self::ValueNode { region, .. } => *region,
@@ -71,9 +79,54 @@ impl<T: Clone + Positioned> QTreeMut<T> {
 
     // pub fn get_values(&self, addres: Vec<usize>) -> Vec<T> {}
 
-    // pub fn add(&mut self, value: T) {}
+    // pub fn add(&mut self, value: T) {
+    //     match self {
+    //         Self::BlankNode {
+    //             region,
+    //             depth,
+    //             children,
+    //         } => {}
+    //         Self::ValueNode {
+    //             region,
+    //             depth,
+    //             values,
+    //         } => {}
+    //     }
+    // }
 
     // pub fn remove(&mut self, value: T) {}
+
+    pub fn split_by_click(self, click: Vec2) -> Self {
+        match self {
+            Self::BlankNode {
+                region,
+                depth,
+                mut children,
+            } => {
+                let center = region.center();
+                let i = if click.x < center.x {
+                    if click.y < center.y {
+                        Quadrant::TopLeft
+                    } else {
+                        Quadrant::BottomLeft
+                    }
+                } else {
+                    if click.y < center.y {
+                        Quadrant::TopRight
+                    } else {
+                        Quadrant::BottomRight
+                    }
+                };
+                children[i as usize] = Self::split_by_click(children[i as usize].clone(), click);
+                Self::BlankNode {
+                    region,
+                    depth,
+                    children,
+                }
+            }
+            Self::ValueNode { .. } => self.split(),
+        }
+    }
 
     pub fn split(self) -> Self {
         match self {
