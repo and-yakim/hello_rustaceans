@@ -1,5 +1,5 @@
 use macroquad::math::{Rect, Vec2};
-// use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 pub trait Positioned {
     fn pos(&self) -> Vec2;
@@ -68,6 +68,8 @@ impl<T: Clone + Positioned> QTreeMut<T> {
             Self::ValueNode { .. } => f(self),
         }
     }
+
+    // pub fn get_values(&self, addres: Vec<usize>) -> Vec<T> {}
 
     // pub fn add(&mut self, value: T) {}
 
@@ -144,22 +146,32 @@ impl<T: Clone + Positioned> QTreeMut<T> {
     }
 }
 
-// #[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize)]
+#[serde(remote = "Rect")]
+struct RectDef {
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 struct IndexedNode<T: Clone + Positioned> {
-    region: Rect, // needs a serde wrapper
+    #[serde(with = "RectDef")]
+    region: Rect,
     parent: u16,
     children: Option<[u16; 4]>,
     values: Vec<T>,
 }
 
-// #[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct QTree<T: Clone + Positioned> {
-    tree: Vec<IndexedNode<T>>,
+    arr: Vec<IndexedNode<T>>,
 }
 
 impl<T: Clone + Positioned> QTree<T> {
     fn new(tree: QTreeMut<T>) -> Self {
         // vec![root, root.0, root.1, root.2, root.3, *layer3*, .. ]
-        QTree { tree: Vec::new() }
+        QTree { arr: Vec::new() }
     }
 }
