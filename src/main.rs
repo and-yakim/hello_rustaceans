@@ -5,9 +5,9 @@ use std::time;
 
 use macroquad::prelude::*;
 
-fn draw_region(rect: &Rect, depth: &u8, scale: f32, color: Color) {
+fn draw_region(rect: &Rect, scale: f32, color: Color) {
     draw_rectangle_lines(rect.x, rect.y, rect.w, rect.h, 4.0 / scale, color);
-    let font_size: f32 = 40.0 / (depth + 1) as f32;
+    let font_size: f32 = 40.0 / scale;
     draw_text(
         &format!("{}", rect.w),
         rect.x + rect.w / 2.0 - rect.w.log10() * font_size / 4.0,
@@ -21,17 +21,15 @@ impl<T: Clone + Positioned> QTreeMut<T> {
     fn draw(&self, scale: f32) {
         match self {
             QTreeMut::BlankNode {
-                region,
-                depth,
-                children,
+                region, children, ..
             } => {
-                draw_region(region, depth, scale, BLUE);
+                draw_region(region, scale, BLUE);
                 for node in children.iter() {
                     node.draw(scale);
                 }
             }
-            QTreeMut::ValueNode { region, depth, .. } => {
-                draw_region(region, depth, scale, GREEN);
+            QTreeMut::ValueNode { region, .. } => {
+                draw_region(region, scale, GREEN);
             }
         }
     }
@@ -63,24 +61,17 @@ async fn main() {
 
     let mut target = screen_center;
     let mut scale = 1.0;
-    let mut zoom = vec2(2.0 * scale / width, 2.0 * scale / height);
-    let mut camera = Camera2D {
-        target,
-        zoom,
-        ..Default::default()
-    };
 
     let mut p = screen_center;
 
     loop {
         if is_mouse_button_pressed(MouseButton::Left) {
             let click = Vec2::from(mouse_position());
-            // WRONG
             let world_pos = (click - screen_center) / scale + target;
             p = world_pos;
             println!("{} {}", click, world_pos);
             if quadtree.region().contains(world_pos) {
-                quadtree = quadtree.split_by_click(click);
+                quadtree = quadtree.split_by_click(world_pos);
                 println!("Split done!");
             }
         }
@@ -94,7 +85,6 @@ async fn main() {
             }
             _ => {}
         }
-        zoom = vec2(2.0 * scale / width, 2.0 * scale / height);
 
         if is_key_down(KeyCode::D) {
             target.x += 10.0 / scale;
@@ -109,9 +99,9 @@ async fn main() {
             target.y -= 10.0 / scale;
         }
 
-        camera = Camera2D {
+        let camera = Camera2D {
             target,
-            zoom,
+            zoom: vec2(2.0 * scale / width, 2.0 * scale / height),
             ..Default::default()
         };
 

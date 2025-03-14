@@ -128,7 +128,7 @@ impl<T: Clone + Positioned> QTreeMut<T> {
         }
     }
 
-    pub fn split(self) -> Self {
+    fn split(self) -> Self {
         match self {
             Self::BlankNode { .. } => self,
             Self::ValueNode {
