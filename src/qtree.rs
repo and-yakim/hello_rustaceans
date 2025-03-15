@@ -60,22 +60,31 @@ impl<T: Clone + Positioned> QTreeMut<T> {
         }
     }
 
-    pub fn update<F: Clone + FnMut(&Self) -> Self>(&self, mut f: F) -> Self {
-        match self {
-            Self::BlankNode { children, .. } => {
-                let self_updated = f(self);
-                Self::BlankNode {
-                    region: self_updated.region(),
-                    depth: self_updated.depth(),
-                    children: children
-                        .iter()
-                        .map(|node| Self::update(node, f.clone()))
-                        .collect(),
-                }
-            }
-            Self::ValueNode { .. } => f(self),
-        }
-    }
+    // pub fn resize(self, rect: Rect) -> Self {
+    //     match self {
+    //         Self::BlankNode {
+    //             region,
+    //             depth,
+    //             children,
+    //         } => Self::BlankNode {
+    //             region: rect,
+    //             depth: *depth,
+    //             children: children
+    //                 .iter()
+    //                 .map(|node| node.resize(f.clone()))
+    //                 .collect(),
+    //         },
+    //         Self::ValueNode {
+    //             region,
+    //             depth,
+    //             values,
+    //         } => Self::ValueNode {
+    //             region: rect,
+    //             depth: *depth,
+    //             values,
+    //         },
+    //     }
+    // }
 
     // pub fn get_values(&self, addres: Vec<usize>) -> Vec<T> {}
 
@@ -128,6 +137,53 @@ impl<T: Clone + Positioned> QTreeMut<T> {
         }
     }
 
+    // pub fn enlarge_by_click(self, click: Vec2) -> Self {
+    //     // Self::new(region, values)
+    //     let center = self.region().center();
+    //     let i = if click.x < center.x {
+    //         if click.y < center.y {
+    //             Quadrant::TopLeft
+    //         } else {
+    //             Quadrant::BottomLeft
+    //         }
+    //     } else {
+    //         if click.y < center.y {
+    //             Quadrant::TopRight
+    //         } else {
+    //             Quadrant::BottomRight
+    //         }
+    //     };
+    //     match self {
+    //         Self::BlankNode {
+    //             region,
+    //             depth,
+    //             mut children,
+    //         } => {
+    //             let center = region.center();
+    //             let i = if click.x < center.x {
+    //                 if click.y < center.y {
+    //                     Quadrant::TopLeft
+    //                 } else {
+    //                     Quadrant::BottomLeft
+    //                 }
+    //             } else {
+    //                 if click.y < center.y {
+    //                     Quadrant::TopRight
+    //                 } else {
+    //                     Quadrant::BottomRight
+    //                 }
+    //             };
+    //             children[i as usize] = Self::split_by_click(children[i as usize].clone(), click);
+    //             Self::BlankNode {
+    //                 region,
+    //                 depth,
+    //                 children,
+    //             }
+    //         }
+    //         Self::ValueNode { .. } => self.split(),
+    //     }
+    // }
+
     fn split(self) -> Self {
         match self {
             Self::BlankNode { .. } => self,
@@ -152,8 +208,6 @@ impl<T: Clone + Positioned> QTreeMut<T> {
             }
         }
     }
-
-    // pub fn enlarge(self, dir: Dir) -> Self {}
 
     fn split_values(region: &Rect, values: Vec<T>) -> [(Rect, Vec<T>); 4] {
         let (half_w, half_h) = (region.w / 2.0, region.h / 2.0);
