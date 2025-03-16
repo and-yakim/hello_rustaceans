@@ -31,11 +31,12 @@ impl<T: Clone + Positioned> QTreeMut<T> {
 }
 
 #[derive(Clone)]
-struct MyObstacle {
+struct Item {
     pos: Vec2,
+    hitbox: Rect,
 }
 
-impl Positioned for MyObstacle {
+impl Positioned for Item {
     fn pos(&self) -> Vec2 {
         self.pos
     }
@@ -57,7 +58,7 @@ async fn main() {
     let screen_center = vec2(width / 2.0, height / 2.0);
     let region = Rect::new(0.0, 0.0, height, height);
 
-    let mut quadtree: QTreeMut<MyObstacle> = QTreeMut::new(region, vec![]);
+    let mut quadtree: QTreeMut<Item> = QTreeMut::new(region, vec![]);
 
     let mut target = screen_center;
     let mut scale = 1.0;
@@ -68,7 +69,9 @@ async fn main() {
         let click = Vec2::from(mouse_position());
         let world_pos = (click - screen_center) / scale + target;
         if is_mouse_button_pressed(MouseButton::Left) {
-            // if tools.contains(world_pos) {} else
+            // if tools.contains(world_pos) {
+            //     quadtree = quadtree.resize();
+            // } else
             if quadtree.region().contains(world_pos) {
                 quadtree = quadtree.split_by_click(world_pos);
             }
