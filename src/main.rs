@@ -69,12 +69,7 @@ async fn main() {
         let click = Vec2::from(mouse_position());
         let world_click = (click - screen_center) / scale + target;
         if is_mouse_button_pressed(MouseButton::Left) {
-            if quadtree.region().contains(world_click) {
-                quadtree = quadtree.split_by_click(world_click);
-                println!("{}", quadtree.depth());
-            }
-        } else if is_mouse_button_pressed(MouseButton::Right) {
-            //
+            if quadtree.region().contains(world_click) {}
         }
 
         if is_key_down(KeyCode::D) {

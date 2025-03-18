@@ -25,12 +25,10 @@ enum Quadrant {
 pub enum QTreeMut<T: Clone + Positioned> {
     BlankNode {
         region: Rect,
-
         children: Vec<QTreeMut<T>>,
     },
     ValueNode {
         region: Rect,
-
         values: Vec<T>,
     },
 }
@@ -63,43 +61,50 @@ impl<T: Clone + Positioned> QTreeMut<T> {
         self.depth0(0)
     }
 
-    pub fn resize(self, rect: Rect) -> Self {
-        match self {
-            Self::BlankNode { children, .. } => Self::BlankNode {
-                region: rect,
-
-                children: children
-                    .iter()
-                    .map(|node| node.to_owned().resize(rect))
-                    .collect(),
-            },
-            Self::ValueNode { values, .. } => Self::ValueNode {
-                region: rect,
-
-                values,
-            },
-        }
-    }
-
-    // pub fn get_values(&self, addres: Vec<usize>) -> Vec<T> {}
-
-    // pub fn add(&mut self, value: T) {
+    // pub fn resize(self, rect: Rect) -> Self {
     //     match self {
-    //         Self::BlankNode {
-    //             region,
+    //         Self::BlankNode { children, .. } => Self::BlankNode {
+    //             region: rect,
 
-    //             children,
-    //         } => {}
-    //         Self::ValueNode {
-    //             region,
+    //             children: children
+    //                 .iter()
+    //                 .map(|node| node.to_owned().resize(rect))
+    //                 .collect(),
+    //         },
+    //         Self::ValueNode { values, .. } => Self::ValueNode {
+    //             region: rect,
 
     //             values,
-    //         } => {}
+    //         },
     //     }
     // }
 
-    // pub fn remove(&mut self, value: T) {}
+    pub fn get_values(&self, addres: Vec<usize>) -> Vec<T> {
+        Vec::new()
+    }
 
+    fn expand_to_contain(&mut self, pos: Vec2) {
+        let rect = self.region();
+
+        // *self = QTreeMut::BlankNode {
+        //     region: rect,
+        //     children: Vec::new(),
+        // };
+    }
+
+    pub fn add(&mut self, value: T) {
+        if !self.region().contains(value.pos()) {
+            self.expand_to_contain(value.pos());
+        }
+        match self {
+            Self::BlankNode { region, children } => {}
+            Self::ValueNode { region, values } => {}
+        }
+    }
+
+    pub fn remove(&mut self, value: T) {}
+
+    /*
     pub fn split_by_click(self, click: Vec2) -> Self {
         match self {
             Self::BlankNode {
@@ -191,6 +196,7 @@ impl<T: Clone + Positioned> QTreeMut<T> {
             ),
         ]
     }
+    */
 }
 
 #[derive(Serialize, Deserialize)]
