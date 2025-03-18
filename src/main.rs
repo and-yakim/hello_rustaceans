@@ -5,6 +5,11 @@ use std::time;
 
 use macroquad::prelude::*;
 
+const GRID: f32 = 32.0;
+const GRID_COLOR: Color = Color::new(0.78, 0.78, 0.78, 0.20);
+
+const CELL: f32 = GRID * 16.0;
+
 impl<T: Clone + Positioned> QTreeMut<T> {
     fn draw(&self, scale: f32) {
         match self {
@@ -42,12 +47,17 @@ impl Positioned for Item {
     }
 }
 
-enum BuilderMode {
-    Tree,
-    Obstacles,
+fn world_pos(screen_point: Vec2, screen_center: Vec2, scale: f32, target: Vec2) -> Vec2 {
+    (screen_point - screen_center) / scale + target
 }
 
-#[macroquad::main("Map builder")]
+fn screen_pos(world_point: Vec2, screen_center: Vec2, scale: f32, target: Vec2) -> Vec2 {
+    (world_point - target) * scale + screen_center
+}
+
+// save world state
+// use custom animations
+#[macroquad::main("Platformer")]
 async fn main() {
     if let Ok(n) = time::SystemTime::now().duration_since(time::SystemTime::UNIX_EPOCH) {
         rand::srand(n.as_secs());
@@ -60,35 +70,18 @@ async fn main() {
 
     let mut quadtree: QTreeMut<Item> = QTreeMut::new(region, vec![]);
 
-    let mut target = screen_center;
+    let mut target = vec2(CELL / 2.0, CELL / 2.0);
     let mut scale = 1.0;
 
     // let tools = ();
 
     loop {
         let click = Vec2::from(mouse_position());
-        let world_pos = (click - screen_center) / scale + target;
+        let world_click = (click - screen_center) / scale + target;
         if is_mouse_button_pressed(MouseButton::Left) {
-            // if tools.contains(world_pos) {
-            //     quadtree = quadtree.resize();
-            // } else
-            if quadtree.region().contains(world_pos) {
-                quadtree = quadtree.split_by_click(world_pos);
-            }
+            //
         } else if is_mouse_button_pressed(MouseButton::Right) {
-            if quadtree.region().contains(world_pos) {
-                // quadtree = quadtree.enlarge_by_click(world_pos);
-            }
-        }
-
-        match get_last_key_pressed() {
-            Some(KeyCode::Q) => {
-                scale *= 1.2;
-            }
-            Some(KeyCode::E) => {
-                scale /= 1.2;
-            }
-            _ => {}
+            //
         }
 
         if is_key_down(KeyCode::D) {
@@ -114,13 +107,38 @@ async fn main() {
 
         clear_background(DARKGRAY);
 
-        quadtree.draw(scale);
+        let world_zero = world_pos(Vec2::ZERO, screen_center, scale, target);
+        let world_corner = world_pos(vec2(width, height), screen_center, scale, target);
 
-        draw_circle(world_pos.x, world_pos.y, 4.0 / scale, RED);
+        let start_x = (world_zero.x / GRID).floor() * GRID;
+        let end_x = (world_corner.x + GRID) / GRID.floor() * GRID;
+        let start_y = (world_zero.y / GRID).floor() * GRID;
+        let end_y = (world_corner.y / GRID + GRID).floor() * GRID;
+
+        for i in 0..=((world_corner.x - world_zero.x + GRID) / GRID) as usize {
+            let x = start_x + GRID * i as f32;
+            draw_line(x, start_y, x, end_y, 1.0 / scale, GRID_COLOR);
+        }
+        for j in 0..=((world_corner.y - world_zero.y + GRID) / GRID) as usize {
+            let y = start_y + GRID * j as f32;
+            draw_line(start_x, y, end_x, y, 1.0 / scale, GRID_COLOR);
+        }
+
+        quadtree.draw(scale);
 
         set_default_camera();
 
         // tools
+
+        match get_last_key_pressed() {
+            Some(KeyCode::Q) => {
+                scale *= 1.2;
+            }
+            Some(KeyCode::E) => {
+                scale /= 1.2;
+            }
+            _ => {}
+        }
 
         if is_key_pressed(KeyCode::Escape) {
             break;
