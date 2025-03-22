@@ -1,17 +1,10 @@
 use macroquad::math::{Rect, Vec2};
 use serde::{Deserialize, Serialize};
+use std::ops::{Deref, DerefMut};
 
 pub trait Positioned {
     fn pos(&self) -> Vec2;
 }
-
-// #[derive(Copy, Clone, PartialEq)]
-// pub enum Dir {
-//     Up,
-//     Down,
-//     Left,
-//     Right,
-// }
 
 #[derive(Copy, Clone, PartialEq)]
 enum Quadrant {
@@ -19,6 +12,38 @@ enum Quadrant {
     TopRight,
     BottomLeft,
     BottomRight,
+}
+
+#[repr(transparent)]
+pub struct Square(Rect);
+
+impl Square {
+    pub fn new(x: f32, y: f32, size: f32) -> Self {
+        Square(Rect {
+            x,
+            y,
+            w: size,
+            h: size,
+        })
+    }
+}
+
+impl Deref for Square {
+    type Target = Rect;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl DerefMut for Square {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl From<Rect> for Square {
+    fn from(rect: Rect) -> Self {
+        Square(rect)
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -47,18 +72,20 @@ impl<T: Clone + Positioned> QTreeMut<T> {
         }
     }
 
-    fn depth0(&self, depth: u8) -> u8 {
+    fn cell_size0(&self, size: f32) -> f32 {
         match self {
             Self::BlankNode { children, .. } => {
-                let arr = children.iter().map(|node| node.depth0(depth + 1));
-                arr.max().unwrap_or(depth)
+                let arr = children
+                    .iter()
+                    .map(|node| node.cell_size0(self.region().w / 2.0));
+                arr.reduce(f32::min).unwrap_or(self.region().w)
             }
-            Self::ValueNode { .. } => depth,
+            Self::ValueNode { .. } => self.region().w,
         }
     }
 
-    pub fn depth(&self) -> u8 {
-        self.depth0(0)
+    pub fn cell_size(&self) -> f32 {
+        self.cell_size0(self.region().w)
     }
 
     // pub fn resize(self, rect: Rect) -> Self {
@@ -84,54 +111,74 @@ impl<T: Clone + Positioned> QTreeMut<T> {
     }
 
     fn expand_to_contain(&mut self, pos: Vec2) {
-        let rect = self.region();
+        let region = self.region();
+        let point = region.point();
 
-        // *self = QTreeMut::BlankNode {
-        //     region: rect,
-        //     children: Vec::new(),
-        // };
+        let (treat_as, rect) = if pos.x > point.x {
+            if pos.y > point.y {
+                (
+                    Quadrant::TopLeft,
+                    Rect::new(region.x, region.y, region.w * 2.0, region.h * 2.0),
+                )
+            } else {
+                (
+                    Quadrant::BottomLeft,
+                    Rect::new(
+                        region.x,
+                        region.y - region.h,
+                        region.w * 2.0,
+                        region.h * 2.0,
+                    ),
+                )
+            }
+        } else {
+            if pos.y > point.y {
+                (
+                    Quadrant::TopRight,
+                    Rect::new(
+                        region.x - region.w,
+                        region.y,
+                        region.w * 2.0,
+                        region.h * 2.0,
+                    ),
+                )
+            } else {
+                (
+                    Quadrant::BottomRight,
+                    Rect::new(
+                        region.x - region.w,
+                        region.y - region.h,
+                        region.w * 2.0,
+                        region.h * 2.0,
+                    ),
+                )
+            }
+        };
+
+        if let Self::BlankNode {
+            region,
+            mut children,
+        } = Self::new(rect, Vec::new()).split()
+        {
+            children[treat_as as usize] = self.clone();
+            *self = Self::BlankNode { region, children };
+        };
     }
 
-    pub fn add(&mut self, value: T) {
-        if !self.region().contains(value.pos()) {
-            self.expand_to_contain(value.pos());
-        }
+    fn add0(&mut self, value: T) {
         match self {
             Self::BlankNode { region, children } => {}
             Self::ValueNode { region, values } => {}
         }
     }
 
-    pub fn remove(&mut self, value: T) {}
-
-    /*
-    pub fn split_by_click(self, click: Vec2) -> Self {
-        match self {
-            Self::BlankNode {
-                region,
-
-                mut children,
-            } => {
-                let center = region.center();
-                let i = if click.x < center.x {
-                    if click.y < center.y {
-                        Quadrant::TopLeft
-                    } else {
-                        Quadrant::BottomLeft
-                    }
-                } else {
-                    if click.y < center.y {
-                        Quadrant::TopRight
-                    } else {
-                        Quadrant::BottomRight
-                    }
-                };
-                children[i as usize] = Self::split_by_click(children[i as usize].clone(), click);
-                Self::BlankNode { region, children }
-            }
-            Self::ValueNode { .. } => self.split(),
+    pub fn add(&mut self, value: T) {
+        while !self.region().contains(value.pos()) {
+            self.expand_to_contain(value.pos());
         }
     }
+
+    pub fn remove(&mut self, value: T) {}
 
     fn split(self) -> Self {
         match self {
@@ -196,7 +243,6 @@ impl<T: Clone + Positioned> QTreeMut<T> {
             ),
         ]
     }
-    */
 }
 
 #[derive(Serialize, Deserialize)]
