@@ -14,6 +14,25 @@ enum Quadrant {
     BottomRight,
 }
 
+impl Quadrant {
+    fn new(region: &Rect, pos: Vec2) -> Self {
+        let center = region.center();
+        if pos.x < center.x {
+            if pos.y < center.y {
+                Quadrant::TopLeft
+            } else {
+                Quadrant::BottomLeft
+            }
+        } else {
+            if pos.y < center.y {
+                Quadrant::TopRight
+            } else {
+                Quadrant::BottomRight
+            }
+        }
+    }
+}
+
 #[repr(transparent)]
 pub struct Square(Rect);
 
@@ -25,6 +44,10 @@ impl Square {
             w: size,
             h: size,
         })
+    }
+
+    fn modify(&self, move_to: Vec2, scale: f32) -> Self {
+        Self::new(move_to.x, move_to.y, self.w * scale)
     }
 }
 
@@ -88,71 +111,34 @@ impl<T: Clone + Positioned> QTreeMut<T> {
         self.cell_size0(self.region().w)
     }
 
-    // pub fn resize(self, rect: Rect) -> Self {
-    //     match self {
-    //         Self::BlankNode { children, .. } => Self::BlankNode {
-    //             region: rect,
-
-    //             children: children
-    //                 .iter()
-    //                 .map(|node| node.to_owned().resize(rect))
-    //                 .collect(),
-    //         },
-    //         Self::ValueNode { values, .. } => Self::ValueNode {
-    //             region: rect,
-
-    //             values,
-    //         },
-    //     }
-    // }
-
     pub fn get_values(&self, addres: Vec<usize>) -> Vec<T> {
         Vec::new()
     }
 
     fn expand_to_contain(&mut self, pos: Vec2) {
         let region = self.region();
-        let point = region.point();
+        let treat_as = Quadrant::new(&region, pos);
 
-        let (treat_as, rect) = if pos.x > point.x {
-            if pos.y > point.y {
-                (
-                    Quadrant::TopLeft,
-                    Rect::new(region.x, region.y, region.w * 2.0, region.h * 2.0),
-                )
-            } else {
-                (
-                    Quadrant::BottomLeft,
-                    Rect::new(
-                        region.x,
-                        region.y - region.h,
-                        region.w * 2.0,
-                        region.h * 2.0,
-                    ),
-                )
-            }
-        } else {
-            if pos.y > point.y {
-                (
-                    Quadrant::TopRight,
-                    Rect::new(
-                        region.x - region.w,
-                        region.y,
-                        region.w * 2.0,
-                        region.h * 2.0,
-                    ),
-                )
-            } else {
-                (
-                    Quadrant::BottomRight,
-                    Rect::new(
-                        region.x - region.w,
-                        region.y - region.h,
-                        region.w * 2.0,
-                        region.h * 2.0,
-                    ),
-                )
-            }
+        let rect = match treat_as {
+            Quadrant::TopLeft => Rect::new(region.x, region.y, region.w * 2.0, region.h * 2.0),
+            Quadrant::TopRight => Rect::new(
+                region.x - region.w,
+                region.y,
+                region.w * 2.0,
+                region.h * 2.0,
+            ),
+            Quadrant::BottomLeft => Rect::new(
+                region.x,
+                region.y - region.h,
+                region.w * 2.0,
+                region.h * 2.0,
+            ),
+            Quadrant::BottomRight => Rect::new(
+                region.x - region.w,
+                region.y - region.h,
+                region.w * 2.0,
+                region.h * 2.0,
+            ),
         };
 
         if let Self::BlankNode {
@@ -176,6 +162,7 @@ impl<T: Clone + Positioned> QTreeMut<T> {
         while !self.region().contains(value.pos()) {
             self.expand_to_contain(value.pos());
         }
+        self.add0(value);
     }
 
     pub fn remove(&mut self, value: T) {}
@@ -188,22 +175,16 @@ impl<T: Clone + Positioned> QTreeMut<T> {
                     .iter()
                     .map(|(reg, val)| Self::ValueNode {
                         region: *reg,
-
                         values: val.to_vec(),
                     })
                     .collect();
-                Self::BlankNode {
-                    region: region,
-
-                    children,
-                }
+                Self::BlankNode { region, children }
             }
         }
     }
 
     fn split_values(region: &Rect, values: Vec<T>) -> [(Rect, Vec<T>); 4] {
         let (half_w, half_h) = (region.w / 2.0, region.h / 2.0);
-        let (center_x, center_y) = (region.x + half_w, region.y + half_h);
 
         let mut top_left = Vec::new();
         let mut top_right = Vec::new();
@@ -211,20 +192,12 @@ impl<T: Clone + Positioned> QTreeMut<T> {
         let mut bottom_right = Vec::new();
 
         for value in values {
-            let pos = &value.pos();
-            if pos.x < center_x {
-                if pos.y < center_y {
-                    top_left.push(value);
-                } else {
-                    bottom_left.push(value);
-                }
-            } else {
-                if pos.y < center_y {
-                    top_right.push(value);
-                } else {
-                    bottom_right.push(value);
-                }
-            }
+            match Quadrant::new(region, value.pos()) {
+                Quadrant::TopLeft => top_left.push(value),
+                Quadrant::TopRight => top_right.push(value),
+                Quadrant::BottomLeft => bottom_left.push(value),
+                Quadrant::BottomRight => bottom_right.push(value),
+            };
         }
 
         [
