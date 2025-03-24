@@ -6,9 +6,14 @@ use std::time;
 use macroquad::prelude::*;
 
 const GRID: f32 = 32.0;
-const GRID_COLOR: Color = Color::new(0.78, 0.78, 0.78, 0.20);
-
 const CELL: f32 = GRID * 16.0;
+
+const fn make_transparent(color: Color, a: f32) -> Color {
+    Color::new(color.r, color.g, color.b, a)
+}
+const GRID_COLOR: Color = make_transparent(LIGHTGRAY, 0.20);
+const KNOT_COLOR: Color = make_transparent(RED, 0.50);
+const RECT_COLOR: Color = make_transparent(GREEN, 0.50);
 
 impl<T: Clone + Positioned> QTreeMut<T> {
     fn draw(&self, scale: f32) {
@@ -19,7 +24,7 @@ impl<T: Clone + Positioned> QTreeMut<T> {
                 }
             }
             QTreeMut::ValueNode { region, .. } => {
-                draw_rectangle_lines(region.x, region.y, region.w, region.h, 4.0 / scale, GREEN);
+                draw_rectangle_lines(region.x, region.y, region.w, region.h, 2.0 / scale, GREEN);
             }
         }
     }
@@ -28,12 +33,35 @@ impl<T: Clone + Positioned> QTreeMut<T> {
 #[derive(Clone)]
 struct Item {
     pos: Vec2,
-    // hitbox: Rect,
+    rect: Rect,
 }
 
 impl Item {
     fn new(pos: Vec2) -> Self {
-        Item { pos }
+        Item {
+            pos,
+            rect: Rect::new(pos.x, pos.y, 0.0, 0.0),
+        }
+    }
+
+    fn draw(&self, scale: f32) {
+        draw_rectangle_lines(
+            self.rect.x,
+            self.rect.y,
+            self.rect.w,
+            self.rect.h,
+            4.0 / scale,
+            BROWN,
+        );
+    }
+}
+
+impl From<Rect> for Item {
+    fn from(rect: Rect) -> Self {
+        Item {
+            pos: rect.center(),
+            rect,
+        }
     }
 }
 
@@ -61,7 +89,7 @@ async fn main() {
     set_default_filter_mode(FilterMode::Nearest);
 
     let screen_wh = vec2(screen_width(), screen_height());
-    let screen_center = vec2(screen_wh.x / 2.0, screen_wh.y / 2.0);
+    let screen_center = screen_wh / 2.0;
     let region = Rect::new(0.0, 0.0, screen_wh.y, screen_wh.y);
 
     let mut quadtree: QTreeMut<Item> = QTreeMut::new(region.into(), vec![]);
@@ -71,12 +99,21 @@ async fn main() {
 
     // let tools = ();
 
+    let mut click_value: Option<Item> = None;
+
     loop {
         let click = Vec2::from(mouse_position());
         let world_click = (click - screen_center) / scale + target;
+        let grid_knot = (world_click / GRID).round() * GRID;
         if is_mouse_button_pressed(MouseButton::Left) {
-            let value = Item::new(world_click);
-            quadtree.add(value);
+            if let Some(item) = click_value {
+                let wh = grid_knot - item.rect.point();
+                let value = Rect::new(item.rect.x, item.rect.y, wh.x, wh.y);
+                quadtree.add(value.into());
+                click_value = None;
+            } else {
+                click_value = Some(Item::new(grid_knot))
+            }
         }
 
         if is_key_down(KeyCode::D) {
@@ -118,6 +155,13 @@ async fn main() {
         }
 
         quadtree.draw(scale);
+
+        draw_circle(grid_knot.x, grid_knot.y, 8.0 / scale, KNOT_COLOR);
+
+        if let Some(ref item) = click_value {
+            let wh = grid_knot - item.rect.point();
+            draw_rectangle(item.rect.x, item.rect.y, wh.x, wh.y, RECT_COLOR);
+        }
 
         set_default_camera();
 
