@@ -28,6 +28,7 @@ impl Quadrant {
 }
 
 #[repr(transparent)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Square(Rect);
 
 impl Square {
@@ -42,6 +43,10 @@ impl Square {
 
     pub fn modify(&self, move_to: Vec2, scale: f32) -> Self {
         Self::new(move_to.x, move_to.y, self.w * scale)
+    }
+
+    pub fn modify_diff(&self, diff: Vec2, size: f32) -> Self {
+        Self::new(self.x + diff.x, self.y + diff.y, size)
     }
 
     pub fn zero(pos: Vec2) -> Self {

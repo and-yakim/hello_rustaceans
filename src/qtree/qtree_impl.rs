@@ -9,23 +9,23 @@ pub trait Positioned {
 #[derive(Clone, Debug)]
 pub enum QTreeMut<T: Clone + Positioned> {
     BlankNode {
-        region: Rect,
+        region: Square,
         children: Vec<QTreeMut<T>>,
     },
     ValueNode {
-        region: Rect,
+        region: Square,
         values: Vec<T>,
     },
 }
 
 impl<T: Clone + Positioned> QTreeMut<T> {
-    pub fn new(region: Rect, values: Vec<T>) -> Self {
+    pub fn new(region: Square, values: Vec<T>) -> Self {
         Self::ValueNode { region, values }
     }
 
     // pub fn from(tree: QTree<T>) -> Self {}
 
-    pub fn region(&self) -> Rect {
+    pub fn region(&self) -> Square {
         match self {
             Self::BlankNode { region, .. } => *region,
             Self::ValueNode { region, .. } => *region,
@@ -48,13 +48,13 @@ impl<T: Clone + Positioned> QTreeMut<T> {
         self.cell_size0(self.region().w)
     }
 
-    fn blank_children(region: Rect) -> Vec<Self> {
-        let (half_w, half_h) = (region.w / 2.0, region.h / 2.0);
+    fn blank_children(region: Square) -> Vec<Self> {
+        let size = region.w / 2.0;
         [
-            Rect::new(region.x, region.y, half_w, half_h),
-            Rect::new(region.x + half_w, region.y, half_w, half_h),
-            Rect::new(region.x, region.y + half_h, half_w, half_h),
-            Rect::new(region.x + half_w, region.y + half_h, half_w, half_h),
+            Square::new(region.x, region.y, size),
+            Square::new(region.x + size, region.y, size),
+            Square::new(region.x, region.y + size, size),
+            Square::new(region.x + size, region.y + size, size),
         ]
         .map(|rect| Self::new(rect, Vec::new()))
         .to_vec()
@@ -62,28 +62,15 @@ impl<T: Clone + Positioned> QTreeMut<T> {
 
     fn expand_to_contain(&mut self, pos: Vec2) {
         let region = self.region();
-        let treat_as = Quadrant::new(&Rect::new(pos.x, pos.y, 0.0, 0.0), region.center());
+        let treat_as = Quadrant::new(&Square::zero(pos), region.center());
 
         let rect = match treat_as {
-            Quadrant::TopLeft => Rect::new(region.x, region.y, region.w * 2.0, region.h * 2.0),
-            Quadrant::TopRight => Rect::new(
-                region.x - region.w,
-                region.y,
-                region.w * 2.0,
-                region.h * 2.0,
-            ),
-            Quadrant::BottomLeft => Rect::new(
-                region.x,
-                region.y - region.h,
-                region.w * 2.0,
-                region.h * 2.0,
-            ),
-            Quadrant::BottomRight => Rect::new(
-                region.x - region.w,
-                region.y - region.h,
-                region.w * 2.0,
-                region.h * 2.0,
-            ),
+            Quadrant::TopLeft => Square::new(region.x, region.y, region.w * 2.0),
+            Quadrant::TopRight => Square::new(region.x - region.w, region.y, region.w * 2.0),
+            Quadrant::BottomLeft => Square::new(region.x, region.y - region.h, region.w * 2.0),
+            Quadrant::BottomRight => {
+                Square::new(region.x - region.w, region.y - region.h, region.w * 2.0)
+            }
         };
 
         let mut children = Self::blank_children(rect);
