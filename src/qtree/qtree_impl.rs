@@ -62,7 +62,7 @@ impl<T: Clone + Positioned> QTreeMut<T> {
 
     fn expand_to_contain(&mut self, pos: Vec2) {
         let region = self.region();
-        let treat_as = Quadrant::new(&region, pos);
+        let treat_as = Quadrant::new(&Rect::new(pos.x, pos.y, 0.0, 0.0), region.center());
 
         let rect = match treat_as {
             Quadrant::TopLeft => Rect::new(region.x, region.y, region.w * 2.0, region.h * 2.0),

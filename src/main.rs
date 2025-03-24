@@ -28,7 +28,13 @@ impl<T: Clone + Positioned> QTreeMut<T> {
 #[derive(Clone)]
 struct Item {
     pos: Vec2,
-    hitbox: Rect,
+    // hitbox: Rect,
+}
+
+impl Item {
+    fn new(pos: Vec2) -> Self {
+        Item { pos }
+    }
 }
 
 impl Positioned for Item {
@@ -69,7 +75,8 @@ async fn main() {
         let click = Vec2::from(mouse_position());
         let world_click = (click - screen_center) / scale + target;
         if is_mouse_button_pressed(MouseButton::Left) {
-            if quadtree.region().contains(world_click) {}
+            let value = Item::new(world_click);
+            quadtree.add(value);
         }
 
         if is_key_down(KeyCode::D) {
