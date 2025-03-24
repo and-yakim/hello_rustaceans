@@ -44,12 +44,20 @@ impl<T: Clone + Positioned> QTreeMut<T> {
         }
     }
 
-    pub fn cell_size(&self) -> f32 {
+    fn cell_size(&self) -> f32 {
         self.cell_size0(self.region().w)
     }
 
-    pub fn get_values(&self, addres: Vec<usize>) -> Vec<T> {
-        Vec::new()
+    fn blank_children(region: Rect) -> Vec<Self> {
+        let (half_w, half_h) = (region.w / 2.0, region.h / 2.0);
+        [
+            Rect::new(region.x, region.y, half_w, half_h),
+            Rect::new(region.x + half_w, region.y, half_w, half_h),
+            Rect::new(region.x, region.y + half_h, half_w, half_h),
+            Rect::new(region.x + half_w, region.y + half_h, half_w, half_h),
+        ]
+        .map(|rect| Self::new(rect, Vec::new()))
+        .to_vec()
     }
 
     fn expand_to_contain(&mut self, pos: Vec2) {
@@ -78,20 +86,34 @@ impl<T: Clone + Positioned> QTreeMut<T> {
             ),
         };
 
-        if let Self::BlankNode {
-            region,
-            mut children,
-        } = Self::new(rect, Vec::new()).split()
-        {
-            children[treat_as as usize] = self.clone();
-            *self = Self::BlankNode { region, children };
+        let mut children = Self::blank_children(rect);
+
+        children[treat_as as usize] = self.clone();
+        *self = Self::BlankNode {
+            region: rect,
+            children,
         };
     }
 
-    fn add0(&mut self, value: T) {
+    fn add0(&mut self, value: T, target_size: f32) {
         match self {
-            Self::BlankNode { region, children } => {}
-            Self::ValueNode { region, values } => {}
+            Self::BlankNode { region, children } => {
+                let i = Quadrant::new(region, value.pos()) as usize;
+                children[i].add0(value, target_size);
+            }
+            Self::ValueNode { region, values } => {
+                if region.w > target_size {
+                    let mut children = Self::blank_children(*region);
+                    let i = Quadrant::new(region, value.pos()) as usize;
+                    children[i].add0(value, target_size);
+                    *self = Self::BlankNode {
+                        region: *region,
+                        children,
+                    }
+                } else {
+                    values.push(value);
+                }
+            }
         }
     }
 
@@ -99,59 +121,8 @@ impl<T: Clone + Positioned> QTreeMut<T> {
         while !self.region().contains(value.pos()) {
             self.expand_to_contain(value.pos());
         }
-        self.add0(value);
-    }
-
-    pub fn remove(&mut self, value: T) {}
-
-    fn split(self) -> Self {
-        match self {
-            Self::BlankNode { .. } => self,
-            Self::ValueNode { region, values } => {
-                let children = Self::split_values(&region, values)
-                    .iter()
-                    .map(|(reg, val)| Self::ValueNode {
-                        region: *reg,
-                        values: val.to_vec(),
-                    })
-                    .collect();
-                Self::BlankNode { region, children }
-            }
-        }
-    }
-
-    fn split_values(region: &Rect, values: Vec<T>) -> [(Rect, Vec<T>); 4] {
-        let (half_w, half_h) = (region.w / 2.0, region.h / 2.0);
-
-        let mut top_left = Vec::new();
-        let mut top_right = Vec::new();
-        let mut bottom_left = Vec::new();
-        let mut bottom_right = Vec::new();
-
-        for value in values {
-            match Quadrant::new(region, value.pos()) {
-                Quadrant::TopLeft => top_left.push(value),
-                Quadrant::TopRight => top_right.push(value),
-                Quadrant::BottomLeft => bottom_left.push(value),
-                Quadrant::BottomRight => bottom_right.push(value),
-            };
-        }
-
-        [
-            (Rect::new(region.x, region.y, half_w, half_h), top_left),
-            (
-                Rect::new(region.x + half_w, region.y, half_w, half_h),
-                top_right,
-            ),
-            (
-                Rect::new(region.x, region.y + half_h, half_w, half_h),
-                bottom_left,
-            ),
-            (
-                Rect::new(region.x + half_w, region.y + half_h, half_w, half_h),
-                bottom_right,
-            ),
-        ]
+        let target_size = self.cell_size();
+        self.add0(value, target_size)
     }
 }
 
