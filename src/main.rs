@@ -47,9 +47,9 @@ fn world_pos(screen_point: Vec2, screen_center: Vec2, scale: f32, target: Vec2) 
     (screen_point - screen_center) / scale + target
 }
 
-fn screen_pos(world_point: Vec2, screen_center: Vec2, scale: f32, target: Vec2) -> Vec2 {
-    (world_point - target) * scale + screen_center
-}
+// fn screen_pos(world_point: Vec2, screen_center: Vec2, scale: f32, target: Vec2) -> Vec2 {
+//     (world_point - target) * scale + screen_center
+// }
 
 // save world state
 // use custom animations
@@ -60,9 +60,9 @@ async fn main() {
     }
     set_default_filter_mode(FilterMode::Nearest);
 
-    let (width, height) = (screen_width(), screen_height());
-    let screen_center = vec2(width / 2.0, height / 2.0);
-    let region = Rect::new(0.0, 0.0, height, height);
+    let screen_wh = vec2(screen_width(), screen_height());
+    let screen_center = vec2(screen_wh.x / 2.0, screen_wh.y / 2.0);
+    let region = Rect::new(0.0, 0.0, screen_wh.y, screen_wh.y);
 
     let mut quadtree: QTreeMut<Item> = QTreeMut::new(region, vec![]);
 
@@ -94,7 +94,7 @@ async fn main() {
 
         let camera = Camera2D {
             target,
-            zoom: vec2(2.0 * scale / width, 2.0 * scale / height),
+            zoom: vec2(scale, scale) / screen_center,
             ..Default::default()
         };
 
@@ -103,20 +103,18 @@ async fn main() {
         clear_background(DARKGRAY);
 
         let world_zero = world_pos(Vec2::ZERO, screen_center, scale, target);
-        let world_corner = world_pos(vec2(width, height), screen_center, scale, target);
+        let world_corner = world_pos(screen_wh, screen_center, scale, target);
 
-        let start_x = (world_zero.x / GRID).floor() * GRID;
-        let end_x = (world_corner.x + GRID) / GRID.floor() * GRID;
-        let start_y = (world_zero.y / GRID).floor() * GRID;
-        let end_y = (world_corner.y / GRID + GRID).floor() * GRID;
+        let start = (world_zero / GRID).floor() * GRID;
+        let end = (world_corner / GRID).ceil() * GRID;
 
         for i in 0..=((world_corner.x - world_zero.x + GRID) / GRID) as usize {
-            let x = start_x + GRID * i as f32;
-            draw_line(x, start_y, x, end_y, 1.0 / scale, GRID_COLOR);
+            let x = start.x + GRID * i as f32;
+            draw_line(x, start.y, x, end.y, 1.0 / scale, GRID_COLOR);
         }
         for j in 0..=((world_corner.y - world_zero.y + GRID) / GRID) as usize {
-            let y = start_y + GRID * j as f32;
-            draw_line(start_x, y, end_x, y, 1.0 / scale, GRID_COLOR);
+            let y = start.y + GRID * j as f32;
+            draw_line(start.x, y, end.x, y, 1.0 / scale, GRID_COLOR);
         }
 
         quadtree.draw(scale);

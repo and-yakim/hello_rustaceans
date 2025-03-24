@@ -43,6 +43,10 @@ impl Square {
     pub fn modify(&self, move_to: Vec2, scale: f32) -> Self {
         Self::new(move_to.x, move_to.y, self.w * scale)
     }
+
+    pub fn zero(pos: Vec2) -> Self {
+        Self::new(pos.x, pos.y, 0.0)
+    }
 }
 
 impl Deref for Square {
