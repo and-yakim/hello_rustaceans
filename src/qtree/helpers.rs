@@ -41,11 +41,7 @@ impl Square {
         })
     }
 
-    pub fn modify(&self, move_to: Vec2, scale: f32) -> Self {
-        Self::new(move_to.x, move_to.y, self.w * scale)
-    }
-
-    pub fn modify_diff(&self, diff: Vec2, size: f32) -> Self {
+    pub fn modify(&self, diff: Vec2, size: f32) -> Self {
         Self::new(self.x + diff.x, self.y + diff.y, size)
     }
 

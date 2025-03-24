@@ -1,2 +1,2 @@
-pub use macroquad::math::{Rect, Vec2};
+pub use macroquad::math::*;
 pub use std::ops::{Deref, DerefMut};

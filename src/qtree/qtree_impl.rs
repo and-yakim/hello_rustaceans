@@ -32,29 +32,23 @@ impl<T: Clone + Positioned> QTreeMut<T> {
         }
     }
 
-    fn cell_size0(&self, size: f32) -> f32 {
+    fn cell_size(&self) -> f32 {
         match self {
             Self::BlankNode { children, .. } => {
-                let arr = children
-                    .iter()
-                    .map(|node| node.cell_size0(self.region().w / 2.0));
+                let arr = children.iter().map(|node| node.cell_size());
                 arr.reduce(f32::min).unwrap_or(self.region().w)
             }
             Self::ValueNode { .. } => self.region().w,
         }
     }
 
-    fn cell_size(&self) -> f32 {
-        self.cell_size0(self.region().w)
-    }
-
     fn blank_children(region: Square) -> Vec<Self> {
         let size = region.w / 2.0;
         [
-            Square::new(region.x, region.y, size),
-            Square::new(region.x + size, region.y, size),
-            Square::new(region.x, region.y + size, size),
-            Square::new(region.x + size, region.y + size, size),
+            region.modify(Vec2::ZERO, size),
+            region.modify(vec2(size, 0.0), size),
+            region.modify(vec2(0.0, size), size),
+            region.modify(vec2(size, size), size),
         ]
         .map(|rect| Self::new(rect, Vec::new()))
         .to_vec()
@@ -65,12 +59,10 @@ impl<T: Clone + Positioned> QTreeMut<T> {
         let treat_as = Quadrant::new(&Square::zero(pos), region.center());
 
         let rect = match treat_as {
-            Quadrant::TopLeft => Square::new(region.x, region.y, region.w * 2.0),
-            Quadrant::TopRight => Square::new(region.x - region.w, region.y, region.w * 2.0),
-            Quadrant::BottomLeft => Square::new(region.x, region.y - region.h, region.w * 2.0),
-            Quadrant::BottomRight => {
-                Square::new(region.x - region.w, region.y - region.h, region.w * 2.0)
-            }
+            Quadrant::TopLeft => region.modify(Vec2::ZERO, region.w * 2.0),
+            Quadrant::TopRight => region.modify(vec2(-region.w, 0.0), region.w * 2.0),
+            Quadrant::BottomLeft => region.modify(vec2(0.0, -region.h), region.w * 2.0),
+            Quadrant::BottomRight => region.modify(vec2(-region.w, -region.h), region.w * 2.0),
         };
 
         let mut children = Self::blank_children(rect);
