@@ -139,19 +139,21 @@ async fn main() {
 
         clear_background(DARKGRAY);
 
-        let world_zero = world_pos(Vec2::ZERO, screen_center, scale, target);
-        let world_corner = world_pos(screen_wh, screen_center, scale, target);
+        if scale > 0.1 {
+            let world_zero = world_pos(Vec2::ZERO, screen_center, scale, target);
+            let world_corner = world_pos(screen_wh, screen_center, scale, target);
 
-        let start = (world_zero / GRID).floor() * GRID;
-        let end = (world_corner / GRID).ceil() * GRID;
+            let start = (world_zero / GRID).floor() * GRID;
+            let end = (world_corner / GRID).ceil() * GRID;
 
-        for i in 0..=((world_corner.x - world_zero.x + GRID) / GRID) as usize {
-            let x = start.x + GRID * i as f32;
-            draw_line(x, start.y, x, end.y, 1.0 / scale, GRID_COLOR);
-        }
-        for j in 0..=((world_corner.y - world_zero.y + GRID) / GRID) as usize {
-            let y = start.y + GRID * j as f32;
-            draw_line(start.x, y, end.x, y, 1.0 / scale, GRID_COLOR);
+            for i in 0..=((world_corner.x - world_zero.x + GRID) / GRID) as usize {
+                let x = start.x + GRID * i as f32;
+                draw_line(x, start.y, x, end.y, 1.0 / scale, GRID_COLOR);
+            }
+            for j in 0..=((world_corner.y - world_zero.y + GRID) / GRID) as usize {
+                let y = start.y + GRID * j as f32;
+                draw_line(start.x, y, end.x, y, 1.0 / scale, GRID_COLOR);
+            }
         }
 
         quadtree.draw(scale);
