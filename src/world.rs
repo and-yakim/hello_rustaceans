@@ -42,7 +42,7 @@ impl From<Rect> for Item {
     }
 }
 
-pub struct RingBuffer3x3<T> {
+pub struct RingBuffer3x3<T: Copy> {
     values: [[T; 3]; 3],
 }
 
@@ -55,31 +55,35 @@ impl<T: Copy> RingBuffer3x3<T> {
         self.values[1][1]
     }
 
+    fn shift_forward<C: Copy>(arr: &mut [C; 3], new: C) {
+        arr[2] = arr[1];
+        arr[1] = arr[0];
+        arr[0] = new;
+    }
+
+    fn shift_backward<C: Copy>(arr: &mut [C; 3], new: C) {
+        arr[0] = arr[1];
+        arr[1] = arr[2];
+        arr[2] = new;
+    }
+
     pub fn shift_left(&mut self, new_col: [T; 3]) {
         for row in 0..3 {
-            self.values[row][0] = self.values[row][1];
-            self.values[row][1] = self.values[row][2];
-            self.values[row][2] = new_col[row];
+            Self::shift_backward(&mut self.values[row], new_col[row]);
         }
     }
 
     pub fn shift_right(&mut self, new_col: [T; 3]) {
         for row in 0..3 {
-            self.values[row][2] = self.values[row][1];
-            self.values[row][1] = self.values[row][0];
-            self.values[row][0] = new_col[row];
+            Self::shift_forward(&mut self.values[row], new_col[row]);
         }
     }
 
     pub fn shift_up(&mut self, new_row: [T; 3]) {
-        self.values[0] = self.values[1];
-        self.values[1] = self.values[2];
-        self.values[2] = new_row;
+        Self::shift_backward(&mut self.values, new_row);
     }
 
     pub fn shift_down(&mut self, new_row: [T; 3]) {
-        self.values[2] = self.values[1];
-        self.values[1] = self.values[0];
-        self.values[0] = new_row;
+        Self::shift_forward(&mut self.values, new_row);
     }
 }
