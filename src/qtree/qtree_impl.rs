@@ -140,14 +140,17 @@ struct IndexedNode<T: Clone + Positioned> {
     values: Vec<T>,
 }
 
+impl<T: Clone + Positioned> IndexedNode<T> {}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct QTree<T: Clone + Positioned> {
-    arr: Vec<IndexedNode<T>>,
+    pub arr: Vec<IndexedNode<T>>,
 }
 
 impl<T: Clone + Positioned> QTree<T> {
     fn new(tree: QTreeMut<T>) -> Self {
-        // vec![root, root.0, root.1, root.2, root.3, *layer3*, .. ]
-        QTree { arr: Vec::new() }
+        // try [[0].values, [1].values, [2].values, self.values]
+        let arr = Vec::with_capacity(tree.size());
+        QTree { arr }
     }
 }

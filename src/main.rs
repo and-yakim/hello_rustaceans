@@ -1,5 +1,8 @@
 mod qtree;
+mod world;
+
 use qtree::*;
+use world::*;
 
 use std::time;
 
@@ -27,47 +30,6 @@ impl<T: Clone + Positioned> QTreeMut<T> {
                 draw_rectangle_lines(region.x, region.y, region.w, region.h, 2.0 / scale, GREEN);
             }
         }
-    }
-}
-
-#[derive(Clone)]
-struct Item {
-    pos: Vec2,
-    rect: Rect,
-}
-
-impl Item {
-    fn new(pos: Vec2) -> Self {
-        Item {
-            pos,
-            rect: Rect::new(pos.x, pos.y, 0.0, 0.0),
-        }
-    }
-
-    fn draw(&self, scale: f32) {
-        draw_rectangle_lines(
-            self.rect.x,
-            self.rect.y,
-            self.rect.w,
-            self.rect.h,
-            4.0 / scale,
-            BROWN,
-        );
-    }
-}
-
-impl From<Rect> for Item {
-    fn from(rect: Rect) -> Self {
-        Item {
-            pos: rect.center(),
-            rect,
-        }
-    }
-}
-
-impl Positioned for Item {
-    fn pos(&self) -> Vec2 {
-        self.pos
     }
 }
 
