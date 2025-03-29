@@ -4,12 +4,12 @@ use macroquad::prelude::*;
 impl<T: Clone + Positioned> QTreeMut<T> {
     pub fn draw(&self, scale: f32) {
         match self {
-            QTreeMut::BlankNode { children, .. } => {
+            QTreeMut::Node { children, .. } => {
                 for node in children.iter() {
                     node.draw(scale);
                 }
             }
-            QTreeMut::ValueNode { region, .. } => {
+            QTreeMut::Leaf { region, .. } => {
                 draw_rectangle_lines(region.x, region.y, region.w, region.h, 2.0 / scale, GREEN);
             }
         }

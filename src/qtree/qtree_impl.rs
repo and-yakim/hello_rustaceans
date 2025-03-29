@@ -7,11 +7,11 @@ pub trait Positioned {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum QTreeMut<T: Clone + Positioned> {
-    BlankNode {
+    Node {
         region: Square,
         children: Vec<QTreeMut<T>>,
     },
-    ValueNode {
+    Leaf {
         region: Square,
         values: Vec<T>,
     },
@@ -19,25 +19,25 @@ pub enum QTreeMut<T: Clone + Positioned> {
 
 impl<T: Clone + Positioned> QTreeMut<T> {
     pub fn new(region: Square, values: Vec<T>) -> Self {
-        Self::ValueNode { region, values }
+        Self::Leaf { region, values }
     }
 
     // pub fn from(tree: QTree<T>) -> Self {}
 
     pub fn region(&self) -> Square {
         match self {
-            Self::BlankNode { region, .. } => *region,
-            Self::ValueNode { region, .. } => *region,
+            Self::Node { region, .. } => *region,
+            Self::Leaf { region, .. } => *region,
         }
     }
 
     fn cell_size(&self) -> f32 {
         match self {
-            Self::BlankNode { children, .. } => {
+            Self::Node { children, .. } => {
                 let arr = children.iter().map(|node| node.cell_size());
                 arr.reduce(f32::min).unwrap_or(self.region().w)
             }
-            Self::ValueNode { .. } => self.region().w,
+            Self::Leaf { .. } => self.region().w,
         }
     }
 
@@ -67,7 +67,7 @@ impl<T: Clone + Positioned> QTreeMut<T> {
         let mut children = Self::blank_children(rect);
 
         children[treat_as as usize] = self.clone();
-        *self = Self::BlankNode {
+        *self = Self::Node {
             region: rect,
             children,
         };
@@ -75,26 +75,26 @@ impl<T: Clone + Positioned> QTreeMut<T> {
 
     fn get_values(&self, pos: Vec2) -> Vec<T> {
         match self {
-            Self::BlankNode { region, children } => {
+            Self::Node { region, children } => {
                 let i = Quadrant::new(region, pos) as usize;
                 children[i].get_values(pos)
             }
-            Self::ValueNode { values, .. } => values.to_vec(),
+            Self::Leaf { values, .. } => values.to_vec(),
         }
     }
 
     fn add0(&mut self, value: T, target_size: f32) {
         match self {
-            Self::BlankNode { region, children } => {
+            Self::Node { region, children } => {
                 let i = Quadrant::new(region, value.pos()) as usize;
                 children[i].add0(value, target_size);
             }
-            Self::ValueNode { region, values } => {
+            Self::Leaf { region, values } => {
                 if region.w > target_size {
                     let mut children = Self::blank_children(*region);
                     let i = Quadrant::new(region, value.pos()) as usize;
                     children[i].add0(value, target_size);
-                    *self = Self::BlankNode {
+                    *self = Self::Node {
                         region: *region,
                         children,
                     }
@@ -115,8 +115,8 @@ impl<T: Clone + Positioned> QTreeMut<T> {
 
     pub fn size(&self) -> usize {
         match self {
-            Self::BlankNode { children, .. } => children.iter().map(Self::size).sum::<usize>() + 1,
-            Self::ValueNode { .. } => 1,
+            Self::Node { children, .. } => children.iter().map(Self::size).sum::<usize>() + 1,
+            Self::Leaf { .. } => 1,
         }
     }
 }
