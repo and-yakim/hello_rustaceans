@@ -1,8 +1,6 @@
 use hello_rustaceans::qtree::*;
 use hello_rustaceans::world::*;
 
-use std::time;
-
 use macroquad::prelude::*;
 
 const GRID: f32 = 32.0;
@@ -19,22 +17,13 @@ fn world_pos(screen_point: Vec2, screen_center: Vec2, scale: f32, target: Vec2) 
     (screen_point - screen_center) / scale + target
 }
 
-// fn screen_pos(world_point: Vec2, screen_center: Vec2, scale: f32, target: Vec2) -> Vec2 {
-//     (world_point - target) * scale + screen_center
-// }
-
-// save world state
-// use custom animations
-#[macroquad::main("Platformer")]
+#[macroquad::main("Map maker")]
 async fn main() {
-    if let Ok(n) = time::SystemTime::now().duration_since(time::SystemTime::UNIX_EPOCH) {
-        rand::srand(n.as_secs());
-    }
     set_default_filter_mode(FilterMode::Nearest);
 
     let screen_wh = vec2(screen_width(), screen_height());
     let screen_center = screen_wh / 2.0;
-    let region = Rect::new(0.0, 0.0, screen_wh.y, screen_wh.y);
+    let region = Rect::new(-screen_center.x, -screen_center.y, screen_wh.y, screen_wh.y);
 
     let mut quadtree: QTreeMut<Item> = QTreeMut::new(region.into(), vec![]);
 

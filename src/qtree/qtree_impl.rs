@@ -1,12 +1,11 @@
 use super::helpers::*;
 use super::*;
-use serde::{Deserialize, Serialize};
 
 pub trait Positioned {
     fn pos(&self) -> Vec2;
 }
 
-#[derive(Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum QTreeMut<T: Clone + Positioned> {
     BlankNode {
         region: Square,
@@ -119,38 +118,5 @@ impl<T: Clone + Positioned> QTreeMut<T> {
             Self::BlankNode { children, .. } => children.iter().map(Self::size).sum::<usize>() + 1,
             Self::ValueNode { .. } => 1,
         }
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(remote = "Rect")]
-struct RectDef {
-    x: f32,
-    y: f32,
-    w: f32,
-    h: f32,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct IndexedNode<T: Clone + Positioned> {
-    #[serde(with = "RectDef")]
-    region: Rect,
-    parent: u16,
-    children: Option<[u16; 4]>,
-    values: Vec<T>,
-}
-
-impl<T: Clone + Positioned> IndexedNode<T> {}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct QTree<T: Clone + Positioned> {
-    pub arr: Vec<IndexedNode<T>>,
-}
-
-impl<T: Clone + Positioned> QTree<T> {
-    fn new(tree: QTreeMut<T>) -> Self {
-        // try [[0].values, [1].values, [2].values, self.values]
-        let arr = Vec::with_capacity(tree.size());
-        QTree { arr }
     }
 }

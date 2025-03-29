@@ -27,9 +27,18 @@ impl Quadrant {
     }
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(remote = "Rect")]
+struct RectDef {
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+}
+
 #[repr(transparent)]
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct Square(Rect);
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, Default, PartialEq)]
+pub struct Square(#[serde(with = "RectDef")] Rect);
 
 impl Square {
     pub fn new(x: f32, y: f32, size: f32) -> Self {

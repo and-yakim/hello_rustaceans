@@ -34,7 +34,7 @@ async fn main() {
 
     let screen_wh = vec2(screen_width(), screen_height());
     let screen_center = screen_wh / 2.0;
-    let region = Rect::new(0.0, 0.0, screen_wh.y, screen_wh.y);
+    let region = Rect::new(-screen_center.x, -screen_center.y, screen_wh.y, screen_wh.y);
 
     let mut quadtree: QTreeMut<Item> = QTreeMut::new(region.into(), vec![]);
 
