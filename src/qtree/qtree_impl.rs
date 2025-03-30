@@ -3,6 +3,17 @@ use super::*;
 
 pub trait Positioned {
     fn pos(&self) -> Vec2;
+
+    fn coords(&self, cell: f32) -> IVec2 {
+        let pos = self.pos();
+        ivec2((pos.x / cell).round() as i32, (pos.y / cell).round() as i32)
+    }
+}
+
+impl<T: Copy + Into<Vec2>> Positioned for T {
+    fn pos(&self) -> Vec2 {
+        (*self).into()
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
