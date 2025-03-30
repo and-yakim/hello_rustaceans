@@ -36,30 +36,14 @@ async fn main() {
 
     let screen_wh = vec2(screen_width(), screen_height());
     let screen_center = screen_wh / 2.0;
-    let region = Rect::new(-screen_center.x, -screen_center.y, screen_wh.y, screen_wh.y);
-
-    let mut quadtree: QTreeMut<Item> = QTreeMut::new(region.into(), vec![]);
 
     let mut target = vec2(CELL / 2.0, CELL / 2.0);
-
-    // let tools = ();
-
-    let mut click_value: Option<Item> = None;
 
     loop {
         let click = Vec2::from(mouse_position());
         let world_click = (click - screen_center) + target;
         let grid_knot = (world_click / GRID).round() * GRID;
-        if is_mouse_button_pressed(MouseButton::Left) {
-            if let Some(item) = click_value {
-                let wh = grid_knot - item.rect.point();
-                let value = Rect::new(item.rect.x, item.rect.y, wh.x, wh.y);
-                quadtree.add(value.into());
-                click_value = None;
-            } else {
-                click_value = Some(Item::new(grid_knot))
-            }
-        }
+        if is_mouse_button_pressed(MouseButton::Left) {}
 
         if is_key_down(KeyCode::D) {
             target.x += 10.0;
@@ -103,18 +87,9 @@ async fn main() {
             draw_line(start.x, y, end.x, y, 1.0, GRID_COLOR);
         }
 
-        quadtree.draw(1.0);
-
         draw_circle(grid_knot.x, grid_knot.y, 8.0, KNOT_COLOR);
 
-        if let Some(ref item) = click_value {
-            let wh = grid_knot - item.rect.point();
-            draw_rectangle(item.rect.x, item.rect.y, wh.x, wh.y, RECT_COLOR);
-        }
-
         set_default_camera();
-
-        // tools
 
         if is_key_pressed(KeyCode::Escape) {
             break;

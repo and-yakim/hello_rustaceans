@@ -8,6 +8,8 @@ pub trait Positioned {
         let pos = self.pos();
         ivec2((pos.x / cell).round() as i32, (pos.y / cell).round() as i32)
     }
+
+    fn draw(&self) {}
 }
 
 impl<T: Copy + Into<Vec2>> Positioned for T {
