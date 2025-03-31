@@ -13,7 +13,6 @@ const fn make_transparent(color: Color, a: f32) -> Color {
 }
 const GRID_COLOR: Color = make_transparent(LIGHTGRAY, 0.20);
 const KNOT_COLOR: Color = make_transparent(RED, 0.50);
-const RECT_COLOR: Color = make_transparent(GREEN, 0.50);
 
 fn world_pos(screen_point: Vec2, screen_center: Vec2, target: Vec2) -> Vec2 {
     (screen_point - screen_center) + target
@@ -22,10 +21,6 @@ fn world_pos(screen_point: Vec2, screen_center: Vec2, target: Vec2) -> Vec2 {
 // fn screen_pos(world_point: Vec2, screen_center: Vec2, target: Vec2) -> Vec2 {
 //     (world_point - target) + screen_center
 // }
-
-fn world_to_cell(pos: Vec2) -> IVec2 {
-    ivec2((pos.x / CELL).round() as i32, (pos.y / CELL).round() as i32)
-}
 
 #[macroquad::main("Platformer")]
 async fn main() {
@@ -37,7 +32,7 @@ async fn main() {
     let screen_wh = vec2(screen_width(), screen_height());
     let screen_center = screen_wh / 2.0;
 
-    let mut target = vec2(CELL / 2.0, CELL / 2.0);
+    let mut target = Vec2::ZERO;
 
     loop {
         let click = Vec2::from(mouse_position());
@@ -58,7 +53,7 @@ async fn main() {
             target.y -= 10.0;
         }
 
-        let map_coords = world_to_cell(target);
+        let map_coords = target.coords(CELL);
         println!("target: {target}");
         println!("target: {map_coords}");
 

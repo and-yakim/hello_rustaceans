@@ -23,11 +23,11 @@ async fn main() {
 
     let screen_wh = vec2(screen_width(), screen_height());
     let screen_center = screen_wh / 2.0;
-    let region = Rect::new(-screen_center.x, -screen_center.y, screen_wh.y, screen_wh.y);
+    let region = Rect::new(-CELL / 2.0, -CELL / 2.0, CELL, CELL);
 
     let mut quadtree: QTreeMut<Item> = QTreeMut::new(region.into(), vec![]);
 
-    let mut target = vec2(CELL / 2.0, CELL / 2.0);
+    let mut target = Vec2::ZERO;
     let mut scale = 1.0;
 
     // let tools = ();
@@ -61,6 +61,10 @@ async fn main() {
         if is_key_down(KeyCode::W) {
             target.y -= 10.0 / scale;
         }
+
+        let map_coords = target.coords(CELL);
+        println!("target: {target}");
+        println!("target: {map_coords}");
 
         let camera = Camera2D {
             target,
