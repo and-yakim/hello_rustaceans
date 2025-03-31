@@ -1,18 +1,67 @@
 use crate::qtree::*;
-use macroquad::prelude::*;
+pub use macroquad::prelude::*;
+
+pub const GRID: f32 = 32.0;
+pub const CELL: f32 = GRID * 16.0;
+
+const fn make_transparent(color: Color, a: f32) -> Color {
+    Color::new(color.r, color.g, color.b, a)
+}
+pub const GRID_COLOR: Color = make_transparent(LIGHTGRAY, 0.20);
+pub const KNOT_COLOR: Color = make_transparent(RED, 0.50);
+pub const RECT_COLOR: Color = make_transparent(GREEN, 0.50);
+
+pub fn world_pos(screen_point: Vec2, screen_center: Vec2, scale: f32, target: Vec2) -> Vec2 {
+    (screen_point - screen_center) / scale + target
+}
+
+pub fn screen_pos(world_point: Vec2, screen_center: Vec2, scale: f32, target: Vec2) -> Vec2 {
+    (world_point - target) * scale + screen_center
+}
+
+pub fn world_rec_to_render(screen_center: Vec2, scale: f32, target: Vec2, screen_wh: Vec2) -> Rect {
+    let world_zero = world_pos(Vec2::ZERO, screen_center, scale, target);
+    let world_wh = world_pos(screen_wh, screen_center, scale, target) - world_zero;
+    Rect::new(world_zero.x, world_zero.y, world_wh.x, world_wh.y)
+}
+
+pub fn draw_grid(screen_center: Vec2, scale: f32, target: Vec2, screen_wh: Vec2) {
+    let world_zero = world_pos(Vec2::ZERO, screen_center, scale, target);
+    let world_corner = world_pos(screen_wh, screen_center, scale, target);
+    let start = (world_zero / GRID).floor() * GRID;
+    let end = (world_corner / GRID).ceil() * GRID;
+
+    for i in 0..=((world_corner.x - world_zero.x + GRID) / GRID) as usize {
+        let x = start.x + GRID * i as f32;
+        draw_line(x, start.y, x, end.y, 1.0 / scale, GRID_COLOR);
+    }
+    for j in 0..=((world_corner.y - world_zero.y + GRID) / GRID) as usize {
+        let y = start.y + GRID * j as f32;
+        draw_line(start.x, y, end.x, y, 1.0 / scale, GRID_COLOR);
+    }
+}
 
 impl<T: Clone + Positioned> QTreeMut<T> {
-    pub fn draw(&self, scale: f32) {
+    pub fn draw(&self, scale: f32, world_rect: Rect) {
         match self {
             QTreeMut::Node { children, .. } => {
                 for node in children {
-                    node.draw(scale);
+                    node.draw(scale, world_rect);
                 }
             }
             QTreeMut::Leaf { region, values } => {
-                draw_rectangle_lines(region.x, region.y, region.w, region.h, 2.0 / scale, GREEN);
-                for v in values {
-                    v.draw();
+                if region.intersect(world_rect).is_some() {
+                    draw_rectangle_lines(
+                        region.x,
+                        region.y,
+                        region.w,
+                        region.h,
+                        2.0 / scale,
+                        GREEN,
+                    );
+                    for v in values {
+                        v.draw();
+                    }
                 }
             }
         }

@@ -3,25 +3,6 @@ use hello_rustaceans::world::*;
 
 use std::time;
 
-use macroquad::prelude::*;
-
-const GRID: f32 = 32.0;
-const CELL: f32 = GRID * 16.0;
-
-const fn make_transparent(color: Color, a: f32) -> Color {
-    Color::new(color.r, color.g, color.b, a)
-}
-const GRID_COLOR: Color = make_transparent(LIGHTGRAY, 0.20);
-const KNOT_COLOR: Color = make_transparent(RED, 0.50);
-
-fn world_pos(screen_point: Vec2, screen_center: Vec2, target: Vec2) -> Vec2 {
-    (screen_point - screen_center) + target
-}
-
-// fn screen_pos(world_point: Vec2, screen_center: Vec2, target: Vec2) -> Vec2 {
-//     (world_point - target) + screen_center
-// }
-
 #[macroquad::main("Platformer")]
 async fn main() {
     if let Ok(n) = time::SystemTime::now().duration_since(time::SystemTime::UNIX_EPOCH) {
@@ -67,20 +48,7 @@ async fn main() {
 
         clear_background(DARKGRAY);
 
-        let world_zero = world_pos(Vec2::ZERO, screen_center, target);
-        let world_corner = world_pos(screen_wh, screen_center, target);
-
-        let start = (world_zero / GRID).floor() * GRID;
-        let end = (world_corner / GRID).ceil() * GRID;
-
-        for i in 0..=((world_corner.x - world_zero.x + GRID) / GRID) as usize {
-            let x = start.x + GRID * i as f32;
-            draw_line(x, start.y, x, end.y, 1.0, GRID_COLOR);
-        }
-        for j in 0..=((world_corner.y - world_zero.y + GRID) / GRID) as usize {
-            let y = start.y + GRID * j as f32;
-            draw_line(start.x, y, end.x, y, 1.0, GRID_COLOR);
-        }
+        draw_grid(screen_center, 1.0, target, screen_wh);
 
         draw_circle(grid_knot.x, grid_knot.y, 8.0, KNOT_COLOR);
 
