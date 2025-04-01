@@ -11,33 +11,52 @@ pub const GRID_COLOR: Color = make_transparent(LIGHTGRAY, 0.20);
 pub const KNOT_COLOR: Color = make_transparent(RED, 0.50);
 pub const RECT_COLOR: Color = make_transparent(GREEN, 0.50);
 
-pub fn world_pos(screen_point: Vec2, screen_center: Vec2, scale: f32, target: Vec2) -> Vec2 {
-    (screen_point - screen_center) / scale + target
+pub struct Screen {
+    pub wh: Vec2,
+    pub center: Vec2,
+    pub scale: f32,
+    pub target: Vec2,
 }
 
-pub fn screen_pos(world_point: Vec2, screen_center: Vec2, scale: f32, target: Vec2) -> Vec2 {
-    (world_point - target) * scale + screen_center
-}
-
-pub fn world_rec_to_render(screen_center: Vec2, scale: f32, target: Vec2, screen_wh: Vec2) -> Rect {
-    let world_zero = world_pos(Vec2::ZERO, screen_center, scale, target);
-    let world_wh = world_pos(screen_wh, screen_center, scale, target) - world_zero;
-    Rect::new(world_zero.x, world_zero.y, world_wh.x, world_wh.y)
-}
-
-pub fn draw_grid(screen_center: Vec2, scale: f32, target: Vec2, screen_wh: Vec2) {
-    let world_zero = world_pos(Vec2::ZERO, screen_center, scale, target);
-    let world_corner = world_pos(screen_wh, screen_center, scale, target);
-    let start = (world_zero / GRID).floor() * GRID;
-    let end = (world_corner / GRID).ceil() * GRID;
-
-    for i in 0..=((world_corner.x - world_zero.x + GRID) / GRID) as usize {
-        let x = start.x + GRID * i as f32;
-        draw_line(x, start.y, x, end.y, 1.0 / scale, GRID_COLOR);
+impl Screen {
+    pub fn new() -> Self {
+        let wh = vec2(screen_width(), screen_height());
+        Screen {
+            wh,
+            center: wh / 2.0,
+            scale: 1.0,
+            target: Vec2::ZERO,
+        }
     }
-    for j in 0..=((world_corner.y - world_zero.y + GRID) / GRID) as usize {
-        let y = start.y + GRID * j as f32;
-        draw_line(start.x, y, end.x, y, 1.0 / scale, GRID_COLOR);
+
+    pub fn zoom(&self) -> Vec2 {
+        vec2(self.scale, self.scale) / self.center
+    }
+
+    pub fn world_pos(&self, screen_point: Vec2) -> Vec2 {
+        (screen_point - self.center) / self.scale + self.target
+    }
+
+    pub fn world_rec_to_render(&self) -> Rect {
+        let world_zero = self.world_pos(Vec2::ZERO);
+        let world_wh = self.world_pos(self.wh) - world_zero;
+        Rect::new(world_zero.x, world_zero.y, world_wh.x, world_wh.y)
+    }
+
+    pub fn draw_grid(&self) {
+        let world_zero = self.world_pos(Vec2::ZERO);
+        let world_corner = self.world_pos(self.wh);
+        let start = (world_zero / GRID).floor() * GRID;
+        let end = (world_corner / GRID).ceil() * GRID;
+
+        for i in 0..=((world_corner.x - world_zero.x + GRID) / GRID) as usize {
+            let x = start.x + GRID * i as f32;
+            draw_line(x, start.y, x, end.y, 1.0 / self.scale, GRID_COLOR);
+        }
+        for j in 0..=((world_corner.y - world_zero.y + GRID) / GRID) as usize {
+            let y = start.y + GRID * j as f32;
+            draw_line(start.x, y, end.x, y, 1.0 / self.scale, GRID_COLOR);
+        }
     }
 }
 
