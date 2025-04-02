@@ -29,6 +29,14 @@ impl Screen {
         }
     }
 
+    pub fn width(&self) -> f32 {
+        self.wh.x
+    }
+
+    pub fn height(&self) -> f32 {
+        self.wh.y
+    }
+
     pub fn zoom(&self) -> Vec2 {
         vec2(self.scale, self.scale) / self.center
     }

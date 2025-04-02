@@ -86,16 +86,6 @@ impl<T: Clone + Positioned> QTreeMut<T> {
         };
     }
 
-    fn get_values(&self, pos: Vec2) -> &Vec<T> {
-        match self {
-            Self::Node { region, children } => {
-                let i = Quadrant::new(region, pos) as usize;
-                children[i].get_values(pos)
-            }
-            Self::Leaf { values, .. } => values,
-        }
-    }
-
     fn add0(&mut self, value: T, target_size: f32) {
         match self {
             Self::Node { region, children } => {
