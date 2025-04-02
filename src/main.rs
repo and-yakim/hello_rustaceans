@@ -27,16 +27,16 @@ async fn main() {
 
     loop {
         if is_key_down(KeyCode::D) {
-            screen.target.x += 10.0;
+            direction = Dir::Right;
         }
         if is_key_down(KeyCode::A) {
-            screen.target.x -= 10.0;
+            direction = Dir::Left;
         }
         if is_key_down(KeyCode::S) {
-            screen.target.y += 10.0;
+            direction = Dir::Down;
         }
         if is_key_down(KeyCode::W) {
-            screen.target.y -= 10.0;
+            direction = Dir::Up;
         }
 
         // let map_coords = target.coords(CELL);

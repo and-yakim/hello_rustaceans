@@ -59,8 +59,7 @@ impl Animation {
     }
 
     pub fn draw(&self, sprite: &Texture2D, pos: Vec2) {
-        let column = 6 // sprite.png offset
-            + self.frame
+        let column = self.frame
             + match self.dir {
                 Dir::Up => 2,
                 Dir::Down => 0,
