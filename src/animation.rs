@@ -33,29 +33,31 @@ pub enum Dir {
     Right,
 }
 
-pub struct Animation {
+pub struct PlayerAnimation {
     state: PlayerState,
     dir: Dir,
     frame: usize,
 }
 
-impl Animation {
-    pub fn new(state: PlayerState, dir: Dir) -> Animation {
-        Animation {
+impl PlayerAnimation {
+    pub fn new(state: PlayerState, dir: Dir) -> PlayerAnimation {
+        PlayerAnimation {
             state,
             dir,
             frame: 0,
         }
     }
 
+    fn step(&mut self) {
+        self.frame = (self.frame + 1) % FRAMES;
+    }
+
     pub fn update(&mut self, state: PlayerState, dir: Dir) {
         if self.state != state || self.dir != dir {
             *self = Self::new(state, dir);
+        } else {
+            self.step();
         }
-    }
-
-    pub fn step(&mut self) {
-        self.frame = (self.frame + 1) % FRAMES;
     }
 
     pub fn draw(&self, sprite: &Texture2D, pos: Vec2) {

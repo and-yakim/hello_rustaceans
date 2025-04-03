@@ -23,7 +23,7 @@ async fn main() {
     let mut direction = Dir::Right;
     let mut player_move = PlayerState::Idle;
 
-    let mut animation = Animation::new(player_move, direction);
+    let mut animation = PlayerAnimation::new(player_move, direction);
 
     loop {
         if is_key_down(KeyCode::D) {
@@ -45,8 +45,6 @@ async fn main() {
             instant = time::Instant::now();
 
             animation.update(player_move, direction);
-
-            animation.step();
         }
 
         let camera = Camera2D {
