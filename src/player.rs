@@ -1,3 +1,5 @@
+use crate::qtree::*;
+use macroquad::experimental::animation::*;
 use macroquad::prelude::*;
 
 pub const TIMESTEP: u128 = 500; // ms
@@ -7,13 +9,13 @@ pub const FRAMES: usize = 2;
 
 pub const SCALE: f32 = 4.0;
 pub const UNIT: f32 = SPRITE * SCALE;
-pub const SIZE: Vec2 = vec2(UNIT, UNIT);
+
+pub const SIZE: Vec2 = Vec2::splat(UNIT);
+const HALF_SIZE: Vec2 = Vec2::splat(UNIT / 2.0);
 
 pub const fn get_source_rect(x: usize, y: usize) -> Rect {
     Rect::new(SPRITE * x as f32, SPRITE * y as f32, SPRITE, SPRITE)
 }
-
-// generate an array of states for a single sprite sheet
 
 #[derive(Copy, Clone, PartialEq)]
 pub enum PlayerState {
@@ -31,6 +33,20 @@ pub enum Dir {
     Down,
     Left,
     Right,
+}
+
+struct Player {
+    image: Texture2D,
+    sprite: AnimatedSprite,
+    state: PlayerState,
+    dir: Dir,
+    pos: Vec2,
+}
+
+impl Positioned for Player {
+    fn pos(&self) -> Vec2 {
+        self.pos
+    }
 }
 
 pub struct PlayerAnimation {
@@ -61,6 +77,7 @@ impl PlayerAnimation {
     }
 
     pub fn draw(&self, sprite: &Texture2D, pos: Vec2) {
+        let pos = pos - HALF_SIZE;
         let column = self.frame
             + match self.dir {
                 Dir::Up => 2,
@@ -70,10 +87,8 @@ impl PlayerAnimation {
         let params = DrawTextureParams {
             dest_size: Some(SIZE),
             source: Some(get_source_rect(column, self.state as usize)),
-            rotation: 0.0,
             flip_x: self.dir == Dir::Left,
-            flip_y: false,
-            pivot: None,
+            ..Default::default()
         };
         draw_texture_ex(sprite, pos.x, pos.y, WHITE, params);
     }

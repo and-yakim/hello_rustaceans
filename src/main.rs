@@ -1,4 +1,4 @@
-use hello_rustaceans::animation::*;
+use hello_rustaceans::player::*;
 use hello_rustaceans::qtree::*;
 use hello_rustaceans::world::*;
 
